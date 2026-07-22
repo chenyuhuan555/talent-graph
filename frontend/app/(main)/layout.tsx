@@ -17,6 +17,11 @@ const NAV = [
   { href: '/review', label: '数据审核', icon: 'check' },
 ];
 
+const ADMIN_NAV = [
+  { href: '/settings/members', label: '成员管理', icon: 'users' },
+  { href: '/settings/audit', label: '审计记录', icon: 'check' },
+];
+
 const ROLE_LABEL: Record<string, string> = {
   admin: '管理员',
   leader: '项目负责人',
@@ -92,7 +97,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto py-3 px-2.5">
-          {NAV.map((item) => {
+          {[...NAV, ...(user?.role === 'admin' ? ADMIN_NAV : [])].map((item) => {
             const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
             return (
               <Link

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, parseJSON, type MergeTask } from '@/lib/api';
+import { getMergeTasks, mergePeople } from '@/lib/data/review';
+import { parseJSON, type MergeTask } from '@/lib/types';
 
 const TABS = [
   { key: 'merge', label: '待合并人才' },
@@ -17,14 +18,14 @@ export default function ReviewPage() {
 
   useEffect(() => {
     setLoading(true);
-    api.get<MergeTask[]>('/api/merge-tasks').then(setTasks).finally(() => setLoading(false));
+    getMergeTasks().then((result) => setTasks(result.data)).finally(() => setLoading(false));
   }, [tab]);
 
-  async function doMerge(taskId: string) {
+  async function doMerge(task: MergeTask) {
     try {
-      await api.post(`/api/merge-tasks/${taskId}/merge`);
+      await mergePeople(task.primary_person_id, task.duplicate_person_id);
       setMsg('合并成功');
-      setTasks((t) => t.filter((x) => x.id !== taskId));
+      setTasks((items) => items.filter((item) => item.id !== task.id));
       setTimeout(() => setMsg(''), 2000);
     } catch (e: any) {
       setMsg(e.message);
@@ -72,7 +73,7 @@ export default function ReviewPage() {
                     <td className="px-4 py-3"><span className="text-xs px-2 py-0.5 rounded bg-warm-100 text-warm-500">{t.status}</span></td>
                     <td className="px-4 py-3">
                       {t.status === 'pending' ? (
-                        <button onClick={() => doMerge(t.id)} className="text-xs px-3 py-1 bg-forest-600 text-white rounded hover:bg-forest-700">确认合并</button>
+                        <button onClick={() => doMerge(t)} className="text-xs px-3 py-1 bg-forest-600 text-white rounded hover:bg-forest-700">确认合并</button>
                       ) : <span className="text-xs text-warm-400">{t.status}</span>}
                     </td>
                   </tr>

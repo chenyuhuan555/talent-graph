@@ -1,7 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, type Position, type Match } from '@/lib/api';
+import Link from 'next/link';
+import { getPositionMatches, searchPositions } from '@/lib/data/positions';
+import { personDetailHref } from '@/lib/routes';
+import { parseJSON, type Position, type Match } from '@/lib/types';
+import { PositionForm } from '@/components/forms/position-form';
 
 const DOMAINS = ['大模型', '多模态', 'AI Infra'];
 
@@ -12,11 +16,10 @@ export default function PositionsPage() {
   const [loading, setLoading] = useState(true);
   const [matching, setMatching] = useState(false);
   const [domain, setDomain] = useState('');
+  const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
-    const params = new URLSearchParams();
-    if (domain) params.set('primary_domain', domain);
-    api.get<Position[]>(`/api/positions?${params}`).then(setPositions).finally(() => setLoading(false));
+    searchPositions().then((result) => setPositions(domain ? result.data.filter((p) => p.primary_domain === domain) : result.data)).finally(() => setLoading(false));
   }, [domain]);
 
   async function runMatch(pos: Position) {
@@ -24,8 +27,8 @@ export default function PositionsPage() {
     setMatching(true);
     setMatches([]);
     try {
-      const data = await api.post<Match[]>(`/api/positions/${pos.id}/match`);
-      setMatches(data);
+      const result = await getPositionMatches(pos.id);
+      setMatches(result.data);
     } finally {
       setMatching(false);
     }
@@ -38,6 +41,7 @@ export default function PositionsPage() {
           <h1 className="text-xl font-semibold text-warm-600">岗位管理</h1>
           <p className="text-sm text-warm-400 mt-0.5">客户岗位与人才匹配 · 匹配结果由 AI 规则生成，仅作参考</p>
         </div>
+        <button onClick={() => setShowForm(true)} className="rounded-lg bg-forest-600 px-4 py-2 text-sm text-white">新建岗位</button>
       </header>
 
       <div className="flex gap-4">
@@ -73,7 +77,7 @@ export default function PositionsPage() {
                   <h2 className="text-lg font-semibold text-warm-600">{selected.title}</h2>
                   <button onClick={() => runMatch(selected)} disabled={matching}
                     className="px-4 py-2 bg-forest-600 text-white text-sm rounded-lg hover:bg-forest-700 disabled:opacity-50">
-                    {matching ? '匹配中…' : 'AI 匹配人才'}
+                    {matching ? '加载中…' : '查看匹配人才'}
                   </button>
                 </div>
                 <div className="grid grid-cols-3 gap-4 mb-4">
@@ -109,9 +113,9 @@ export default function PositionsPage() {
                           <div className="text-[10px] text-warm-400">匹配分</div>
                         </div>
                         <div className="ml-4 flex-1">
-                          <a href={`/persons/${m.person_id}`} className="text-sm font-medium text-forest-700 hover:underline">{m.person_name}</a>
+                          <Link href={personDetailHref(m.person_id)} className="text-sm font-medium text-forest-700 hover:underline">{m.person_name || m.chinese_name || m.english_name}</Link>
                           {m.match_reasons && (
-                            <div className="text-xs text-warm-500 mt-0.5">{JSON.parse(m.match_reasons).join('；')}</div>
+                            <div className="text-xs text-warm-500 mt-0.5">{parseJSON<string[]>(m.match_reasons)?.join('；') || m.match_reasons}</div>
                           )}
                         </div>
                       </div>
@@ -123,6 +127,7 @@ export default function PositionsPage() {
           )}
         </div>
       </div>
+      {showForm && <PositionForm onClose={() => setShowForm(false)} onSaved={(position) => { setPositions((items) => [position, ...items]); setSelected(position); setShowForm(false); }} />}
     </div>
   );
 }

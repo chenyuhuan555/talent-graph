@@ -3,40 +3,46 @@
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { api, type Dashboard, LEVEL_COLOR } from '@/lib/api';
+import { getDashboard } from '@/lib/data/dashboard';
+import { exportBusinessSnapshot } from '@/lib/data/exports';
+import { getActiveSession } from '@/lib/auth/session';
+import { personDetailHref } from '@/lib/routes';
+import { type AppRole, type Dashboard, LEVEL_COLOR } from '@/lib/types';
 
 const ReactECharts = dynamic(() => import('echarts-for-react'), { ssr: false });
 
-interface SyncStatus {
-  openalex: { count: number; last_sync: string | null };
-  arxiv: { count: number; last_sync: string | null };
-  github: { count: number; last_sync: string | null };
-  huggingface: { count: number; last_sync: string | null };
-  totals: { persons: number; papers: number; organizations: number; relationships: number; source_records: number };
-}
-
 export default function DashboardPage() {
   const [data, setData] = useState<Dashboard | null>(null);
-  const [sync, setSync] = useState<SyncStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState<AppRole | null>(null);
+  const [exportError, setExportError] = useState('');
 
   useEffect(() => {
-    Promise.all([
-      api.get<Dashboard>('/api/dashboard'),
-      api.get<SyncStatus>('/api/data-sync/status'),
-    ]).then(([d, s]) => { setData(d); setSync(s); }).finally(() => setLoading(false));
+    getDashboard().then(setData).finally(() => setLoading(false));
+    getActiveSession().then((active) => setRole(active?.profile.role || null));
   }, []);
+
+  async function downloadExport() {
+    if (!role) return;
+    setExportError('');
+    try {
+      const snapshot = await exportBusinessSnapshot(role);
+      const url = URL.createObjectURL(new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' }));
+      const link = document.createElement('a'); link.href = url; link.download = `talent-graph-${new Date().toISOString().slice(0, 10)}.json`; link.click();
+      URL.revokeObjectURL(url);
+    } catch (reason) { setExportError(reason instanceof Error ? reason.message : '导出失败'); }
+  }
 
   if (loading) return <div className="text-warm-400">加载中…</div>;
   if (!data) return <div className="text-red-500">加载失败</div>;
 
   const stats = [
     { label: '人才总量', value: data.total_persons, color: 'text-forest-700' },
-    { label: '本周新增', value: data.new_this_week, color: 'text-forest-600' },
-    { label: '可联系人才', value: data.with_contact, color: 'text-forest-600' },
-    { label: '本月触达', value: data.outreach_this_month, color: 'text-warm-600' },
-    { label: '有效回复', value: data.replied, color: 'text-forest-600' },
-    { label: '人工确认关系', value: data.verified_relations, color: 'text-forest-700' },
+    { label: '机构总量', value: data.total_organizations || 0, color: 'text-forest-600' },
+    { label: '开放岗位', value: data.open_positions || 0, color: 'text-forest-600' },
+    { label: '待跟进', value: data.pending_followups || 0, color: 'text-warm-600' },
+    { label: '关系总量', value: data.verified_relations, color: 'text-forest-600' },
+    { label: '业务状态', value: 1, color: 'text-forest-700' },
   ];
 
   const domainOption = {
@@ -66,10 +72,12 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <header className="mb-6">
-        <h1 className="text-xl font-semibold text-warm-600">首页看板</h1>
-        <p className="text-sm text-warm-400 mt-0.5">人工智能人才库整体情况 · 首期覆盖大模型 / 多模态 / AI Infra</p>
+      <header className="mb-6 flex items-center justify-between">
+        <div><h1 className="text-xl font-semibold text-warm-600">首页看板</h1>
+        <p className="text-sm text-warm-400 mt-0.5">人工智能人才库整体情况 · 首期覆盖大模型 / 多模态 / AI Infra</p></div>
+        {(role === 'admin' || role === 'leader') && <button onClick={() => void downloadExport()} className="rounded-lg border border-forest-200 px-4 py-2 text-sm text-forest-700 hover:bg-forest-50">导出业务数据</button>}
       </header>
+      {exportError && <div className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{exportError}</div>}
 
       {/* 核心指标 */}
       <div className="grid grid-cols-6 gap-4 mb-6">
@@ -106,7 +114,7 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-2">
             {data.high_potential.slice(0, 6).map((p) => (
-              <Link key={p.id} href={`/persons/${p.id}`} className="flex items-center px-3 py-2 rounded-lg hover:bg-warm-50 transition">
+              <Link key={p.id} href={personDetailHref(p.id)} className="flex items-center px-3 py-2 rounded-lg hover:bg-warm-50 transition">
                 <div className="w-8 h-8 rounded-full bg-forest-100 text-forest-700 flex items-center justify-center text-xs font-medium mr-3">
                   {p.name[0]}
                 </div>
@@ -120,28 +128,11 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className="surface p-5">
-          <h3 className="text-sm font-medium text-warm-600 mb-3">数据来源状态</h3>
-          {sync ? (
-            <div className="space-y-2">
-              {[
-                ['OpenAlex', sync.openalex],
-                ['arXiv', sync.arxiv],
-                ['GitHub', sync.github],
-                ['HuggingFace', sync.huggingface],
-              ].map(([name, s]: any) => (
-                <div key={name} className="flex items-center px-3 py-2 border border-warm-200 rounded-lg">
-                  <span className="text-sm font-medium text-warm-600 w-24">{name}</span>
-                  <span className="text-sm text-forest-600">{s.count.toLocaleString()} 条</span>
-                  <span className="ml-auto text-xs text-warm-400">{s.last_sync ? new Date(s.last_sync).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '未同步'}</span>
-                </div>
-              ))}
-              <div className="mt-3 pt-3 border-t border-warm-200 grid grid-cols-3 gap-2 text-center">
-                <div><div className="text-lg font-semibold text-forest-700">{sync.totals.persons.toLocaleString()}</div><div className="text-[10px] text-warm-400">人才</div></div>
-                <div><div className="text-lg font-semibold text-forest-700">{sync.totals.papers.toLocaleString()}</div><div className="text-[10px] text-warm-400">论文</div></div>
-                <div><div className="text-lg font-semibold text-forest-700">{sync.totals.relationships.toLocaleString()}</div><div className="text-[10px] text-warm-400">关系</div></div>
-              </div>
-            </div>
-          ) : <div className="text-sm text-warm-400">加载中…</div>}
+          <h3 className="text-sm font-medium text-warm-600 mb-3">在线数据状态</h3>
+          <div className="rounded-lg border border-forest-100 bg-forest-50 p-4">
+            <div className="text-sm font-medium text-forest-700">Supabase 已连接</div>
+            <div className="mt-1 text-xs text-warm-500">页面只读取当前账号有权访问的在线业务数据。</div>
+          </div>
         </div>
       </div>
     </div>

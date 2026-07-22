@@ -577,8 +577,7 @@ begin
     'person_position_matches', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.person_position_matches t),
     'person_tags', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.person_tags t),
     'source_records', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.source_records t),
-    'merge_tasks', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.merge_tasks t),
-    'audit_logs', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.audit_logs t)
+    'merge_tasks', (select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) from public.merge_tasks t)
   );
   perform public.write_audit_log('export', 'business_snapshot');
   return snapshot;
