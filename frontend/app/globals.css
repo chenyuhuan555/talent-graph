@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #FBFAF8;
+  --surface: #FFFFFF;
+  --border: #EAE8E3;
+  --text: #2A2A28;
+  --text-muted: #8C887E;
+  --accent: #2D6A4F;
+  --accent-light: #3D8A68;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 细边框 + 轻阴影风格 */
+.surface {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #D8D5CD;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #B8B4A9;
+}
+
+/* 关系图节点 */
+.graph-svg text {
+  user-select: none;
+  pointer-events: none;
+}
