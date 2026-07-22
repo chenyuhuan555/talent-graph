@@ -90,7 +90,7 @@ An authenticated user has a corresponding protected profile containing display n
 
 Only profiles with `status = 'active'` may access business data. Policies and privileged functions check current database state rather than relying only on role claims in a potentially stale JWT. Disabling a profile therefore removes data access even if the browser still has an unexpired session.
 
-Only administrators may create, disable, or change the roles of members. There is no inactivity-based automatic logout requirement. Explicit logout and normal Supabase session expiry remain in effect.
+Only administrators may create, disable, or change the roles of members. Explicit logout and normal Supabase session expiry apply.
 
 ## Roles and Permissions
 
