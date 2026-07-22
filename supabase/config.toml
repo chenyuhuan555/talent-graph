@@ -19,4 +19,4 @@ enabled = true
 file_size_limit = "20MiB"
 
 [functions.manage-member]
-verify_jwt = false
+verify_jwt = true

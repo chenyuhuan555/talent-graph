@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 BROWSER_IDENTITY = ROOT / "frontend" / "lib" / "auth" / "identity.ts"
 EDGE_IDENTITY = ROOT / "supabase" / "functions" / "_shared" / "username.ts"
 MANAGE_MEMBER = ROOT / "supabase" / "functions" / "manage-member" / "index.ts"
+SUPABASE_CONFIG = ROOT / "supabase" / "config.toml"
 
 VECTORS = [
     (" Alice ", "alice"),
@@ -79,3 +80,9 @@ def test_member_management_fails_closed_and_keeps_identity_private():
     assert "targetProfile" in source
     assert "auditError" in source
     assert "await adminClient.from('profiles').delete()" in source
+
+
+def test_member_management_keeps_platform_jwt_verification_enabled():
+    config = SUPABASE_CONFIG.read_text(encoding="utf-8")
+    assert "[functions.manage-member]" in config
+    assert "verify_jwt = true" in config
