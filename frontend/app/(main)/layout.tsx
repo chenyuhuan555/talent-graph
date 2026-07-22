@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { clearAuth, getCurrentUser, getToken, type AuthUser } from '@/lib/api';
+import { getActiveSession, logout, subscribeToAuthChanges } from '@/lib/auth/session';
+import type { AppProfile } from '@/lib/types';
 
 const NAV = [
   { href: '/dashboard', label: '首页', icon: 'home' },
@@ -13,7 +14,6 @@ const NAV = [
   { href: '/organizations', label: '学校与公司', icon: 'building' },
   { href: '/positions', label: '岗位管理', icon: 'briefcase' },
   { href: '/outreach', label: '触达工作台', icon: 'chat' },
-  { href: '/import', label: '数据导入', icon: 'upload' },
   { href: '/review', label: '数据审核', icon: 'check' },
 ];
 
@@ -43,24 +43,37 @@ function Icon({ name }: { name: string }) {
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<AppProfile | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (!getToken()) {
-      router.replace('/login');
-      return;
+    let active = true;
+
+    async function refreshSession() {
+      const activeSession = await getActiveSession();
+      if (!active) return;
+      if (!activeSession) {
+        router.replace('/login');
+        return;
+      }
+      setUser(activeSession.profile);
+      setReady(true);
     }
-    setUser(getCurrentUser());
-    setReady(true);
+
+    void refreshSession();
+    const unsubscribe = subscribeToAuthChanges(() => void refreshSession());
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, [router]);
 
-  function logout() {
-    clearAuth();
+  async function handleLogout() {
+    await logout();
     router.replace('/login');
   }
 
-  if (!ready) return <div className="min-h-screen flex items-center justify-center text-warm-400">加载中…</div>;
+  if (!ready) return <div role="status" className="min-h-screen flex items-center justify-center text-warm-400">加载中…</div>;
 
   return (
     <div className="min-h-screen flex">
@@ -98,13 +111,13 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         <div className="border-t border-warm-200 p-3">
           <div className="flex items-center px-2 py-1.5">
             <div className="w-8 h-8 rounded-full bg-forest-100 text-forest-700 flex items-center justify-center text-sm font-medium">
-              {user?.name?.[0] || 'U'}
+              {user?.display_name?.[0] || 'U'}
             </div>
             <div className="ml-2 flex-1 min-w-0">
-              <div className="text-sm font-medium text-warm-600 truncate">{user?.name}</div>
+              <div className="text-sm font-medium text-warm-600 truncate">{user?.display_name}</div>
               <div className="text-[10px] text-warm-400">{ROLE_LABEL[user?.role || ''] || user?.role}</div>
             </div>
-            <button onClick={logout} title="退出登录" className="text-warm-400 hover:text-red-500 p-1">
+            <button onClick={() => void handleLogout()} aria-label="退出登录" title="退出登录" className="text-warm-400 hover:text-red-500 p-1">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
               </svg>
