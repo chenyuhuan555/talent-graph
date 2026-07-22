@@ -1,0 +1,24 @@
+# Node
+node_modules/
+.next/
+out/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.db
+*.sqlite3
+
+# 环境与上传
+.env
+uploads/
+talent_graph.db
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 隔离工作区
+.worktrees/
