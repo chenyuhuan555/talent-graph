@@ -2,19 +2,44 @@
 node_modules/
 .next/
 out/
+frontend/out/
+frontend/Dockerfile
 
 # Python
 __pycache__/
 *.pyc
 .venv/
 venv/
+.migration-venv/
 *.db
+*.db-*
+*.sqlite
 *.sqlite3
+*.sqlite-*
 
 # 环境与上传
-.env
+.env*
+!.env.example
+!frontend/.env.example
 uploads/
 talent_graph.db
+
+# 仅保留在本机的旧系统与业务数据
+.workbuddy/
+backend/
+data_pipeline/
+docker-compose.yml
+FEATURES.md
+deploy/
+deploy_final/
+deploy_lite/
+deploy_test/
+backups/
+exports/
+reports/
+supabase/.temp/
+playwright-report/
+test-results/
 
 # 系统
 .DS_Store
