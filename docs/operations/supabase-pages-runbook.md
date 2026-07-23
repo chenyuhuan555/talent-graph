@@ -26,6 +26,40 @@ npx supabase@latest functions deploy manage-member --project-ref $env:SUPABASE_P
 
 保持 `manage-member` 的 JWT 验证开启。函数还会再次验证调用者是否为活跃管理员。
 
+### 2.1 名称翻译功能（学校 / 公司 / 论文中文译名）
+
+名称翻译新增了数据库迁移、`translate-content` Edge Function 和一个管理员批处理脚本。DeepSeek key 只作为 Edge Function Secret，不进入前端、Pages 产物、日志或 Git。
+
+```powershell
+# 1) 应用新增迁移（新增 organizations.name_zh / papers.title_zh / translation_cache，
+#    并扩展 organizations_search、新增 papers_search）。迁移仅新增列/表，不改动
+#    现有数据、RLS 或角色权限；*_zh 为空时前端回退显示原文，可安全先于翻译执行。
+npx supabase@latest db push --linked
+
+# 2) 配置 DeepSeek Secret（仅服务端）。DEEPSEEK_MODEL 可选，默认 deepseek-chat。
+$env:DEEPSEEK_API_KEY = '<deepseek key from password manager>'
+npx supabase@latest secrets set DEEPSEEK_API_KEY=$env:DEEPSEEK_API_KEY --project-ref $env:SUPABASE_PROJECT_REF
+npx supabase@latest secrets set DEEPSEEK_MODEL=deepseek-chat --project-ref $env:SUPABASE_PROJECT_REF
+Remove-Item Env:DEEPSEEK_API_KEY
+
+# 3) 部署函数（推送 main 时 CI 也会自动部署 translate-content；此处可手动先行部署）。
+npx supabase@latest functions deploy translate-content --project-ref $env:SUPABASE_PROJECT_REF
+```
+
+`translate-content` 保持 JWT 验证开启，并只允许 admin / operator 角色写入 `name_zh` / `title_zh`；机构仅处理学校和公司类型，其余类型跳过。
+
+历史数据批量翻译（管理员执行，可断点续跑，单条失败继续，无默认覆盖 / 清空）：
+
+```powershell
+$env:SUPABASE_DB_URL = '<password-manager connection string>'   # 只用于读取待翻译记录
+$env:SUPABASE_FUNCTIONS_URL = 'https://<project-ref>.functions.supabase.co'
+$env:TALENT_ADMIN_JWT = '<admin 用户的 access token（JWT）>'
+& .\.migration-venv\Scripts\python.exe -m tools.migration.translate_existing --content-type all --json-output reports\migration\translation.json
+Remove-Item Env:SUPABASE_DB_URL, Env:TALENT_ADMIN_JWT
+```
+
+批处理完成后核验：原始字段 `organizations.name`、`papers.title` 未被修改；`name_zh` / `title_zh` 数量与成功结果一致；重复执行不会重复计费（成功记录已回填，命中缓存不再调用 DeepSeek）。
+
 运行远端 SQL 合约检查；所有合约在事务中回滚测试数据：
 
 ```powershell
