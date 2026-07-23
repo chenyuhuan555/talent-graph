@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 
 import { createBrowserClient } from '@/lib/supabase/client';
@@ -32,6 +35,16 @@ function fakeClient(profile: { status: string; role?: string } | null = { status
 
 
 describe('Supabase session boundary', () => {
+  it('reads public Supabase settings directly so static builds embed them', () => {
+    const source = fs.readFileSync(
+      path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../lib/supabase/client.ts'),
+      'utf8',
+    );
+
+    expect(source).toContain('process.env.NEXT_PUBLIC_SUPABASE_URL');
+    expect(source).toContain('process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
+  });
+
   it('refuses missing public configuration', () => {
     expect(() => createBrowserClient({})).toThrow('Supabase 公共配置缺失');
   });

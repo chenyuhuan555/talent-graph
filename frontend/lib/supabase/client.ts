@@ -5,7 +5,12 @@ type PublicEnvironment = Record<string, string | undefined>;
 
 let browserClient: SupabaseClient | null = null;
 
-export function createBrowserClient(environment: PublicEnvironment = process.env): SupabaseClient {
+const buildPublicEnvironment: PublicEnvironment = {
+  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+};
+
+export function createBrowserClient(environment: PublicEnvironment = buildPublicEnvironment): SupabaseClient {
   const url = environment.NEXT_PUBLIC_SUPABASE_URL;
   const publishableKey = environment.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !publishableKey) {
