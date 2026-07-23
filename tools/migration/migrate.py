@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 import sqlite3
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -20,6 +21,7 @@ TABLE_ORDER = [
     "person_position_matches", "person_tags", "merge_tasks", "audit_logs",
 ]
 SELF_PARENT_TABLES = {"organizations", "tags"}
+ProgressCallback = Callable[[str, int, int], None]
 
 
 def validate_replace(replace: bool, confirmation: str | None, project_ref: str) -> None:
@@ -54,6 +56,7 @@ def migrate_database(
     *,
     dry_run: bool,
     replace: bool = False,
+    progress: ProgressCallback | None = None,
 ) -> dict[str, int]:
     mapper = OwnerMapper(admin_id) if admin_id else None
     counts: dict[str, int] = {}
@@ -86,8 +89,22 @@ def migrate_database(
         column_sql = ", ".join(f'"{column}"' for column in columns)
         placeholders = ", ".join(["%s"] * len(columns))
         statement = f'insert into public."{table}" ({column_sql}) values ({placeholders})'
-        for row in rows:
-            destination.execute(statement, [row[column] for column in columns])
+        values = [[row[column] for column in columns] for row in rows]
+        batch_size = 1_000
+        if hasattr(destination, "cursor"):
+            with destination.cursor() as cursor:
+                for start in range(0, len(values), batch_size):
+                    batch = values[start:start + batch_size]
+                    cursor.executemany(statement, batch)
+                    if progress:
+                        progress(table, start + len(batch), len(values))
+        else:
+            for start in range(0, len(values), batch_size):
+                batch = values[start:start + batch_size]
+                for row_values in batch:
+                    destination.execute(statement, row_values)
+                if progress:
+                    progress(table, start + len(batch), len(values))
     return counts
 
 
@@ -110,7 +127,11 @@ def main() -> int:
         with psycopg.connect(database_url) as connection:
             counts = migrate_database(
                 args.snapshot, connection, args.admin_id,
-                dry_run=False, replace=args.replace,
+                dry_run=False,
+                replace=args.replace,
+                progress=lambda table, completed, total: print(
+                    f"导入进度：{table} {completed}/{total}", flush=True
+                ),
             )
     print(counts)
     return 0

@@ -41,6 +41,41 @@ def test_dry_run_transforms_without_writing(tmp_path):
     destination.execute.assert_not_called()
 
 
+def test_live_migration_reports_progress_for_each_table(tmp_path):
+    source = tmp_path / "fixture.db"
+    import sqlite3
+
+    with sqlite3.connect(source) as connection:
+        connection.execute("create table organizations (id text primary key, name text)")
+        connection.executemany(
+            "insert into organizations values (?, ?)",
+            [
+                ("11111111111141118111111111111111", "One"),
+                ("22222222222242228222222222222222", "Two"),
+            ],
+        )
+
+    class Destination:
+        def __init__(self):
+            self.executed = []
+
+        def execute(self, statement, values):
+            self.executed.append((statement, values))
+
+    destination = Destination()
+    progress = []
+    migrate_database(
+        source,
+        destination,
+        admin_id=None,
+        dry_run=False,
+        progress=lambda table, completed, total: progress.append((table, completed, total)),
+    )
+
+    assert len(destination.executed) == 2
+    assert progress[-1] == ("organizations", 2, 2)
+
+
 def test_bootstrap_never_accepts_password_arguments():
     destinations = {action.dest for action in build_parser()._actions}
     assert "password" not in destinations
