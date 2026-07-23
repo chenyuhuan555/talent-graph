@@ -49,6 +49,34 @@ def test_bootstrap_never_accepts_password_arguments():
     assert email == f"{username_hash}@talent-graph.invalid"
 
 
+def test_password_reset_updates_only_the_matching_active_account(monkeypatch, capsys):
+    from tools.migration import reset_admin_password
+
+    calls = []
+
+    def request(url, method, key, payload=None):
+        calls.append((url, method, key, payload))
+        if method == "GET":
+            return [{"id": "admin-id", "status": "active"}]
+        return {}
+
+    monkeypatch.setenv("SUPABASE_URL", "https://project.supabase.co")
+    monkeypatch.setenv("SUPABASE_SECRET_KEY", "test-secret")
+    monkeypatch.setattr(reset_admin_password, "_request", request)
+    monkeypatch.setattr("builtins.input", lambda prompt: "Admin")
+    monkeypatch.setattr(reset_admin_password.getpass, "getpass", lambda prompt: "new-password-12")
+
+    assert reset_admin_password.main() == 0
+    assert calls[0][1] == "GET"
+    assert calls[1] == (
+        "https://project.supabase.co/auth/v1/admin/users/admin-id",
+        "PUT",
+        "test-secret",
+        {"password": "new-password-12"},
+    )
+    assert '"status": "password_reset"' in capsys.readouterr().out
+
+
 def test_remote_export_excludes_auth_and_password_material():
     assert set(EXPORT_TABLES) == set(TABLE_ORDER) | {"profiles"}
     assert "users" not in EXPORT_TABLES
