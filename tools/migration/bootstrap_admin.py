@@ -32,14 +32,15 @@ def _request(
     body = None if payload is None else json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(url, data=body, method=method)
     request.add_header("apikey", key)
-    request.add_header("Authorization", f"Bearer {key}")
+    if not key.startswith("sb_"):
+        request.add_header("Authorization", f"Bearer {key}")
     request.add_header("Content-Type", "application/json")
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
             content = response.read()
     except urllib.error.HTTPError as error:
-        error.read()
-        raise RuntimeError("supabase_request_failed") from error
+        details = error.read().decode("utf-8", errors="replace")[:512]
+        raise RuntimeError(f"supabase_request_failed:{error.code}:{details}") from error
     return json.loads(content) if content else {}
 
 
