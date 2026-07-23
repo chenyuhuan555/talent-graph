@@ -3,6 +3,13 @@ revoke all on all tables in schema public from anon;
 revoke all on all functions in schema public from public;
 revoke all on all functions in schema public from anon;
 
+-- Server-side admin operations use the service_role through secret API keys.
+-- These privileges are not available to browser clients and bypass RLS only
+-- for trusted server requests.
+grant usage on schema public to service_role;
+grant all privileges on all tables in schema public to service_role;
+grant all privileges on all sequences in schema public to service_role;
+
 create or replace function public.current_app_role() returns text
 language sql stable security definer set search_path = ''
 as $$
