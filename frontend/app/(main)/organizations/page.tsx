@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getOrganizationPeople, searchOrganizations } from '@/lib/data/organizations';
 import { personDetailHref } from '@/lib/routes';
+import { displayOrganizationName } from '@/lib/display';
 import type { Organization, Person } from '@/lib/types';
 
 const TYPE_LABEL: Record<string, string> = { university: '高校', company: '公司', lab: '实验室', institute: '研究院', team: '团队' };
@@ -42,7 +43,7 @@ export default function OrganizationsPage() {
             {loading ? <div className="text-warm-400 text-sm">加载中…</div> : orgs.map((o) => (
               <button key={o.id} onClick={() => selectOrg(o)}
                 className={`w-full text-left px-4 py-3 rounded-lg border transition ${selected?.id === o.id ? 'border-forest-500 bg-forest-50' : 'border-warm-200 hover:bg-warm-50'}`}>
-                <div className="text-sm font-medium text-warm-600">{o.name}</div>
+                <div className="text-sm font-medium text-warm-600">{displayOrganizationName(o)}</div>
                 <div className="text-xs text-warm-400">{TYPE_LABEL[o.organization_type]} · {o.city || '—'}</div>
               </button>
             ))}
@@ -55,7 +56,10 @@ export default function OrganizationsPage() {
           ) : (
             <div className="space-y-4">
               <div className="surface p-6">
-                <h2 className="text-lg font-semibold text-warm-600 mb-1">{selected.name}</h2>
+                <h2 className="text-lg font-semibold text-warm-600 mb-1">{displayOrganizationName(selected)}</h2>
+                {selected.name_zh?.trim() && selected.name?.trim() && selected.name_zh.trim() !== selected.name.trim() && (
+                  <div className="text-sm text-warm-400">原文：{selected.name}</div>
+                )}
                 {selected.english_name && <div className="text-sm text-warm-400 mb-3">{selected.english_name}</div>}
                 <div className="grid grid-cols-3 gap-4">
                   <div><div className="text-xs text-warm-400">类型</div><div className="text-sm text-warm-600">{TYPE_LABEL[selected.organization_type]}</div></div>

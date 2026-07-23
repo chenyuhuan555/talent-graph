@@ -8,6 +8,7 @@ import { getPersonOutreach } from '@/lib/data/outreach';
 import { getPersonRelationships } from '@/lib/data/relationships';
 import { externalHttpHref, personDetailHref } from '@/lib/routes';
 import { LEVEL_COLOR, STRENGTH_LABEL, REL_TYPE_LABEL, parseJSON, type Person, type Experience, type Paper, type Project, type Contact, type Relationship, type Outreach, type Match } from '@/lib/types';
+import { displayPaperTitle } from '@/lib/display';
 import { ContactForm } from '@/components/forms/contact-form';
 import { OutreachForm } from '@/components/forms/outreach-form';
 
@@ -158,9 +159,12 @@ function PapersTab({ personId }: { personId: string }) {
       {data.length === 0 ? <Empty /> : data.map((p) => (
         <div key={p.id} className="border border-warm-200 rounded-lg p-3">
           <div className="flex items-start justify-between">
-            <a href={externalHttpHref(p.source_url)} target="_blank" rel="noreferrer" className="text-sm font-medium text-forest-700 hover:underline">{p.title}</a>
+            <a href={externalHttpHref(p.source_url)} target="_blank" rel="noreferrer" className="text-sm font-medium text-forest-700 hover:underline">{displayPaperTitle(p)}</a>
             <span className="text-xs text-warm-400 ml-3 shrink-0">引用 {p.citation_count}</span>
           </div>
+          {p.title_zh?.trim() && p.title?.trim() && p.title_zh.trim() !== p.title.trim() && (
+            <div className="text-xs text-warm-400 mt-1">原文：{p.title}</div>
+          )}
           <div className="text-xs text-warm-400 mt-1">{p.venue} · {p.publication_date?.slice(0, 7)}</div>
         </div>
       ))}
