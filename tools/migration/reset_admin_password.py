@@ -16,12 +16,12 @@ def main() -> int:
         raise SystemExit("SUPABASE_URL and SUPABASE_SECRET_KEY are required")
 
     username = input("管理员用户名: ")
-    password = getpass.getpass("新密码（至少 12 位）: ")
+    password = getpass.getpass("新密码（至少 8 位）: ")
     confirmation = getpass.getpass("再次输入新密码: ")
     try:
         if password != confirmation:
             raise ValueError("password_confirmation_mismatch")
-        if len(password) < 12 or len(password) > 128:
+        if len(password) < 8 or len(password) > 128:
             raise ValueError("password_length_invalid")
         username_hash, _ = derive_internal_identity(username)
         profiles = _request(

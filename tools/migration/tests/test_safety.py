@@ -77,6 +77,23 @@ def test_password_reset_updates_only_the_matching_active_account(monkeypatch, ca
     assert '"status": "password_reset"' in capsys.readouterr().out
 
 
+def test_password_reset_accepts_an_eight_character_password(monkeypatch):
+    from tools.migration import reset_admin_password
+
+    def request(url, method, key, payload=None):
+        if method == "GET":
+            return [{"id": "admin-id", "status": "active"}]
+        return {}
+
+    monkeypatch.setenv("SUPABASE_URL", "https://project.supabase.co")
+    monkeypatch.setenv("SUPABASE_SECRET_KEY", "test-secret")
+    monkeypatch.setattr(reset_admin_password, "_request", request)
+    monkeypatch.setattr("builtins.input", lambda prompt: "Admin")
+    monkeypatch.setattr(reset_admin_password.getpass, "getpass", lambda prompt: "passw0rd")
+
+    assert reset_admin_password.main() == 0
+
+
 def test_remote_export_excludes_auth_and_password_material():
     assert set(EXPORT_TABLES) == set(TABLE_ORDER) | {"profiles"}
     assert "users" not in EXPORT_TABLES
