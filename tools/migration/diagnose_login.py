@@ -59,7 +59,21 @@ def main() -> int:
         )
         if len(profiles) != 1 or profiles[0].get("status") != "active":
             raise RuntimeError("profile_access_failed")
-        print(json.dumps({"status": "login_ready", "role": profiles[0].get("role")}))
+        summary = request_json(
+            f"{supabase_url}/rest/v1/rpc/dashboard_summary",
+            "POST",
+            publishable_key,
+            {},
+            bearer=token,
+        )
+        print(json.dumps({
+            "status": "login_ready",
+            "role": profiles[0].get("role"),
+            "persons": summary.get("persons", 0),
+            "organizations": summary.get("organizations", 0),
+            "relationships": summary.get("relationships", 0),
+            "positions": summary.get("positions", 0),
+        }))
         return 0
     finally:
         password = ""

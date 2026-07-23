@@ -103,6 +103,8 @@ def test_login_diagnosis_checks_the_same_auth_and_profile_steps_as_the_browser(m
         calls.append((url, method, key, payload, bearer))
         if "auth/v1/token" in url:
             return {"access_token": "session-token", "user": {"id": "admin-id"}}
+        if "dashboard_summary" in url:
+            return {"persons": 12, "organizations": 3, "relationships": 8, "positions": 1}
         return [{"id": "admin-id", "status": "active", "role": "admin"}]
 
     monkeypatch.setenv("SUPABASE_URL", "https://project.supabase.co")
@@ -115,7 +117,9 @@ def test_login_diagnosis_checks_the_same_auth_and_profile_steps_as_the_browser(m
     assert calls[0][0] == "https://project.supabase.co/auth/v1/token?grant_type=password"
     assert calls[0][3]["password"] == "passw0rd"
     assert calls[1][4] == "session-token"
-    assert '"status": "login_ready"' in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert '"status": "login_ready"' in output
+    assert '"persons": 12' in output
 
 
 def test_remote_export_excludes_auth_and_password_material():
