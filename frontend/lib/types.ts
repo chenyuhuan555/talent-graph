@@ -29,7 +29,7 @@ export interface Person {
 }
 
 export interface Organization {
-  id: string; name: string; english_name?: string; organization_type: string; parent_id?: string;
+  id: string; name: string; name_zh?: string; english_name?: string; organization_type: string; parent_id?: string;
   industry?: string; country?: string; city?: string; website?: string; description?: string;
 }
 
@@ -39,7 +39,7 @@ export interface Experience {
   description?: string; verified?: boolean; organization_name?: string;
 }
 
-export interface Paper { id: string; title: string; abstract?: string; publication_date?: string; venue?: string; citation_count?: number; domains?: string; source_url?: string }
+export interface Paper { id: string; title: string; title_zh?: string; abstract?: string; publication_date?: string; venue?: string; citation_count?: number; domains?: string; source_url?: string }
 export interface Project { id: string; name: string; project_type?: string; url?: string; description?: string; domains?: string; stars_count?: number; organization_name?: string }
 
 export interface Contact {
