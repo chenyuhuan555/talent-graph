@@ -94,6 +94,30 @@ def test_password_reset_accepts_an_eight_character_password(monkeypatch):
     assert reset_admin_password.main() == 0
 
 
+def test_login_diagnosis_checks_the_same_auth_and_profile_steps_as_the_browser(monkeypatch, capsys):
+    from tools.migration import diagnose_login
+
+    calls = []
+
+    def request(url, method, key, payload=None, bearer=None):
+        calls.append((url, method, key, payload, bearer))
+        if "auth/v1/token" in url:
+            return {"access_token": "session-token", "user": {"id": "admin-id"}}
+        return [{"id": "admin-id", "status": "active", "role": "admin"}]
+
+    monkeypatch.setenv("SUPABASE_URL", "https://project.supabase.co")
+    monkeypatch.setenv("SUPABASE_PUBLISHABLE_KEY", "test-publishable")
+    monkeypatch.setattr(diagnose_login, "request_json", request)
+    monkeypatch.setattr("builtins.input", lambda prompt: "Admin")
+    monkeypatch.setattr(diagnose_login.getpass, "getpass", lambda prompt: "passw0rd")
+
+    assert diagnose_login.main() == 0
+    assert calls[0][0] == "https://project.supabase.co/auth/v1/token?grant_type=password"
+    assert calls[0][3]["password"] == "passw0rd"
+    assert calls[1][4] == "session-token"
+    assert '"status": "login_ready"' in capsys.readouterr().out
+
+
 def test_remote_export_excludes_auth_and_password_material():
     assert set(EXPORT_TABLES) == set(TABLE_ORDER) | {"profiles"}
     assert "users" not in EXPORT_TABLES
