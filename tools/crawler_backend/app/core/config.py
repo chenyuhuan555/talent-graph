@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./talent_graph.db"
 
     # 鉴权
-    SECRET_KEY: str = "dev-secret-key-change-in-production-please-use-a-long-random-string"
+    SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 天
 
@@ -36,7 +36,7 @@ class Settings(BaseSettings):
 
     # 演示账号
     DEMO_EMAIL: str = "demo@aitalent.com"
-    DEMO_PASSWORD: str = "demo123456"
+    DEMO_PASSWORD: str = ""
 
     @property
     def is_sqlite(self) -> bool:

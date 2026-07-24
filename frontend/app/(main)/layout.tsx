@@ -18,6 +18,7 @@ const NAV = [
 ];
 
 const ADMIN_NAV = [
+  { href: '/import', label: '数据导入', icon: 'upload' },
   { href: '/settings/members', label: '成员管理', icon: 'users' },
   { href: '/settings/audit', label: '审计记录', icon: 'check' },
 ];

@@ -16,7 +16,7 @@ describe('GitHub Pages configuration', () => {
     expect(config).not.toContain('127.0.0.1:8000');
   });
 
-  it('removes the excluded resume import route', () => {
-    expect(fs.existsSync(path.join(ROOT, 'app', '(main)', 'import', 'page.tsx'))).toBe(false);
+  it('exposes the administrator data import route', () => {
+    expect(fs.existsSync(path.join(ROOT, 'app', '(main)', 'import', 'page.tsx'))).toBe(true);
   });
 });

@@ -50,14 +50,13 @@ Thumbs.db
 
 data_pipeline/scripts/static_data/
 backend/.venv/
-backend/.env.example
-backend/Dockerfile
-backend/app/api/
-backend/app/main.py
-backend/app/schemas.py
-backend/app/seed.py
-backend/app/services/
-backend/requirements.txt
-backend/tests/
-data_pipeline/scripts/export_static_data.py
-data_pipeline/services/data_sync_api.py
+tools/crawler_backend/app/api/
+tools/crawler_backend/app/main.py
+tools/crawler_backend/app/schemas.py
+tools/crawler_backend/app/seed.py
+tools/crawler_backend/app/services/
+tools/data_pipeline/scripts/export_static_data.py
+tools/data_pipeline/services/data_sync_api.py
+tools/data_pipeline/scripts/static_data/
+backend/
+data_pipeline/

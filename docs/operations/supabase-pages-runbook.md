@@ -46,6 +46,23 @@ Remove-Item Env:DEEPSEEK_API_KEY
 npx supabase@latest functions deploy translate-content --project-ref $env:SUPABASE_PROJECT_REF
 ```
 
+### 2.2 一键采集按钮
+
+“数据导入”页面的管理员按钮会异步触发 GitHub Actions，不会把数据库连接串发送到浏览器。
+首次配置一次即可：
+
+1. 在 GitHub 仓库 **Settings → Secrets and variables → Actions → Secrets** 新增
+   `SUPABASE_DB_URL`，值为 Supabase Connect 中的 **Session Pooler** 连接串。
+2. 创建一个仅有 Actions `workflow_dispatch` 权限的 GitHub Token，在 Supabase
+   **Edge Function Secrets** 中新增 `GITHUB_ACTIONS_TOKEN`。
+3. 确认 `ALLOWED_ORIGINS` 包含 `https://chenyuhuan555.github.io`，然后推送代码触发
+   `trigger-crawler` 函数部署。
+4. 登录网站，进入管理员可见的“数据导入”，点击“开始一键采集”。默认每个关键词最多 10 篇；
+   采集日志和失败详情在 GitHub Actions 中查看。
+
+数据库密码曾经在聊天中暴露时，必须先在 Supabase Database Settings 重置密码，再更新 GitHub Secret
+中的 `SUPABASE_DB_URL`；旧连接串不可继续使用。
+
 `translate-content` 保持 JWT 验证开启，并只允许 admin / operator 角色写入 `name_zh` / `title_zh`；机构仅处理学校和公司类型，其余类型跳过。
 
 历史数据批量翻译（管理员执行，可断点续跑，单条失败继续，无默认覆盖 / 清空）：

@@ -1,0 +1,49 @@
+name: Run data crawler
+
+on:
+  workflow_dispatch:
+    inputs:
+      max:
+        description: '每个关键词最多采集的论文数'
+        required: false
+        default: '10'
+        type: string
+      keywords:
+        description: '逗号分隔关键词；留空使用默认关键词'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: talent-graph-crawler
+  cancel-in-progress: false
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install crawler dependencies
+        run: python -m pip install -r tools/data_pipeline/requirements.txt
+      - name: Import public research data
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PYTHONPATH: tools:tools/data_pipeline:tools/crawler_backend
+        run: >-
+          python -m data_pipeline.scripts.initial_import
+          --max "${{ inputs.max }}"
+          --keywords "${{ inputs.keywords }}"
+      - name: Rebuild relationships and talent scores
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PYTHONPATH: tools:tools/data_pipeline:tools/crawler_backend
+        run: >-
+          python -c
+          "from tasks.daily_update import rebuild_relations_and_scores; rebuild_relations_and_scores()"
