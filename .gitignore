@@ -26,10 +26,8 @@ venv/
 uploads/
 talent_graph.db
 
-# 仅保留在本机的旧系统与业务数据
+# 本地旧系统与业务数据（代码目录已纳入仓库；数据库/环境文件仍忽略）
 .workbuddy/
-backend/
-data_pipeline/
 docker-compose.yml
 FEATURES.md
 deploy/
@@ -49,3 +47,17 @@ Thumbs.db
 
 # 隔离工作区
 .worktrees/
+
+data_pipeline/scripts/static_data/
+backend/.venv/
+backend/.env.example
+backend/Dockerfile
+backend/app/api/
+backend/app/main.py
+backend/app/schemas.py
+backend/app/seed.py
+backend/app/services/
+backend/requirements.txt
+backend/tests/
+data_pipeline/scripts/export_static_data.py
+data_pipeline/services/data_sync_api.py
