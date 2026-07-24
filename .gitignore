@@ -48,7 +48,7 @@ Thumbs.db
 # 隔离工作区
 .worktrees/
 
-data_pipeline/scripts/static_data/
+/data_pipeline/scripts/static_data/
 backend/.venv/
 tools/crawler_backend/app/api/
 tools/crawler_backend/app/main.py
@@ -59,4 +59,4 @@ tools/data_pipeline/scripts/export_static_data.py
 tools/data_pipeline/services/data_sync_api.py
 tools/data_pipeline/scripts/static_data/
 backend/
-data_pipeline/
+/data_pipeline/
