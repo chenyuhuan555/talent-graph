@@ -4,11 +4,35 @@ from typing import Any
 
 from tools.migration.translate_existing import (
     Tally,
+    admin_jwt_from_credentials,
     chunk,
     next_cursor,
     run,
     to_items,
 )
+from tools.migration.bootstrap_admin import derive_internal_identity
+
+
+def test_admin_jwt_from_credentials_uses_internal_email_and_publishable_key():
+    calls = []
+
+    def request_json(url, headers, payload):
+        calls.append((url, headers, payload))
+        return {"access_token": "jwt-token"}
+
+    assert admin_jwt_from_credentials(
+        "https://project.supabase.co",
+        "publishable-key",
+        "yuhuanchen",
+        "password",
+        request_json=request_json,
+    ) == "jwt-token"
+    _, email = derive_internal_identity("yuhuanchen")
+    assert calls == [(
+        "https://project.supabase.co/auth/v1/token?grant_type=password",
+        {"apikey": "publishable-key", "Content-Type": "application/json"},
+        {"email": email, "password": "password"},
+    )]
 
 
 class FakeCursor:

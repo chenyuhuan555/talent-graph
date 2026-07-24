@@ -28,6 +28,7 @@ Environment:
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import os
 import time
@@ -35,6 +36,8 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable, Sequence
+
+from tools.migration.bootstrap_admin import derive_internal_identity
 
 MAX_BATCH = 20
 TRANSLATABLE_ORG_TYPES = ("university", "company", "school", "college")
@@ -126,6 +129,39 @@ def functions_base_url() -> str:
     raise SystemExit("SUPABASE_FUNCTIONS_URL or SUPABASE_URL is required")
 
 
+def _auth_request_json(url: str, headers: dict[str, str], payload: dict[str, Any]) -> dict[str, Any]:
+    body = json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(url, data=body, method="POST", headers=headers)
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return dict(json.loads(response.read().decode("utf-8")))
+    except (urllib.error.HTTPError, urllib.error.URLError, ValueError) as error:
+        details = ""
+        if isinstance(error, urllib.error.HTTPError):
+            details = error.read().decode("utf-8", errors="replace")
+        raise SystemExit(f"admin_login_failed:{details or error}") from error
+
+
+def admin_jwt_from_credentials(
+    supabase_url: str,
+    publishable_key: str,
+    username: str,
+    password: str,
+    *,
+    request_json: Callable[[str, dict[str, str], dict[str, Any]], dict[str, Any]] = _auth_request_json,
+) -> str:
+    _, email = derive_internal_identity(username)
+    response = request_json(
+        f"{supabase_url.rstrip('/')}/auth/v1/token?grant_type=password",
+        {"apikey": publishable_key, "Content-Type": "application/json"},
+        {"email": email, "password": password},
+    )
+    token = str(response.get("access_token", "")).strip()
+    if not token:
+        raise SystemExit("admin_login_failed:access_token_missing")
+    return token
+
+
 def http_translate(url: str, jwt: str, items: list[dict[str, str]]) -> list[dict[str, Any]]:
     """POST a batch to the translate-content Edge Function and return its items.
 
@@ -201,6 +237,11 @@ def main() -> int:
     )
     parser.add_argument("--max-batch", type=int, default=MAX_BATCH)
     parser.add_argument("--json-output", type=str, default="")
+    parser.add_argument(
+        "--prompt-admin",
+        action="store_true",
+        help="Prompt for admin username/password and obtain a short-lived access token without displaying or saving it.",
+    )
     args = parser.parse_args()
 
     if args.max_batch < 1 or args.max_batch > MAX_BATCH:
@@ -210,8 +251,19 @@ def main() -> int:
     if not database_url:
         raise SystemExit("SUPABASE_DB_URL is required")
     jwt = os.environ.get("TALENT_ADMIN_JWT", "").strip()
+    if args.prompt_admin:
+        supabase_url = os.environ.get("SUPABASE_URL", "").strip()
+        publishable_key = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "").strip()
+        if not supabase_url or not publishable_key:
+            raise SystemExit("--prompt-admin requires SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY")
+        username = input("管理员用户名: ").strip()
+        password = getpass.getpass("管理员密码（输入时不会显示）: ")
+        try:
+            jwt = admin_jwt_from_credentials(supabase_url, publishable_key, username, password)
+        finally:
+            password = ""
     if not jwt:
-        raise SystemExit("TALENT_ADMIN_JWT (admin access token) is required")
+        raise SystemExit("TALENT_ADMIN_JWT (admin access token) is required, or use --prompt-admin")
 
     url = f"{functions_base_url()}/translate-content"
 
