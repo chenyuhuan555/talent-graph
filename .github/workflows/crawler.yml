@@ -30,6 +30,21 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+      - name: Check required database secret
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::GitHub Actions Secret SUPABASE_DB_URL is missing"
+            exit 1
+          fi
+          case "$SUPABASE_DB_URL" in
+            postgresql://*|postgresql+psycopg://*) ;;
+            *)
+              echo "::error::SUPABASE_DB_URL must be a PostgreSQL connection string"
+              exit 1
+              ;;
+          esac
       - name: Install crawler dependencies
         run: python -m pip install -r tools/data_pipeline/requirements.txt
       - name: Import public research data
