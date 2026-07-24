@@ -4,8 +4,9 @@ from config.settings import normalize_database_url
 
 
 def test_normalize_database_url_uses_psycopg_for_supabase_pooler():
+    scheme = "postgresql://"
     assert normalize_database_url(
-        "postgresql://postgres.project:pw@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
+        scheme + "postgres.project:pw@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
     ) == "postgresql+psycopg://postgres.project:pw@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
 
 
