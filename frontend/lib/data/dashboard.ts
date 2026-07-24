@@ -2,8 +2,10 @@ import type { Dashboard } from '@/lib/types';
 import { requireData } from './errors';
 import { defaultClient, type DataClient } from './shared';
 
-export async function getDashboard(client: DataClient = defaultClient()): Promise<Dashboard> {
-  const raw = requireData(await client.rpc('dashboard_summary')) as Record<string, number>;
+export async function getDashboard(industry?: string, client: DataClient = defaultClient()): Promise<Dashboard> {
+  const raw = requireData(await client.rpc('dashboard_summary', {
+    industry_filter: industry || null,
+  })) as Record<string, number>;
   return {
     total_persons: raw.persons || 0, new_this_week: 0, with_contact: 0,
     outreach_this_month: 0, replied: 0, verified_relations: raw.relationships || 0,

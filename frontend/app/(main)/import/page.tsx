@@ -4,12 +4,16 @@ import { useEffect, useState } from 'react';
 
 import { getActiveSession } from '@/lib/auth/session';
 import { triggerCrawler } from '@/lib/data/crawler';
+import { useDomain } from '@/components/domain-context';
+import { DOMAINS, getDomainByKey } from '@/lib/domains';
 import type { AppProfile } from '@/lib/types';
 
 export default function ImportPage() {
+  const { domain: currentDomain } = useDomain();
   const [profile, setProfile] = useState<AppProfile | null>(null);
   const [max, setMax] = useState('10');
-  const [keywords, setKeywords] = useState('');
+  const [crawlDomain, setCrawlDomain] = useState(currentDomain.key);
+  const [keywords, setKeywords] = useState(currentDomain.keywords);
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -18,13 +22,18 @@ export default function ImportPage() {
     void getActiveSession().then((session) => setProfile(session?.profile ?? null));
   }, []);
 
+  function handleDomainChange(next: string) {
+    setCrawlDomain(next);
+    setKeywords(getDomainByKey(next).keywords);
+  }
+
   async function handleStart() {
     setRunning(true);
     setMessage('');
     setError('');
     try {
-      const result = await triggerCrawler({ max: Number(max), keywords });
-      setMessage(`采集任务已启动，每个关键词最多 ${result.max} 篇。后台运行期间可以继续使用网站。`);
+      const result = await triggerCrawler({ max: Number(max), keywords, domain: getDomainByKey(crawlDomain).industry });
+      setMessage(`「${getDomainByKey(crawlDomain).industry}」采集任务已启动，每个关键词最多 ${result.max} 篇。后台运行期间可以继续使用网站。`);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '无法启动采集任务');
     } finally {
@@ -48,7 +57,19 @@ export default function ImportPage() {
         <p className="mt-2 text-sm leading-6 text-warm-500">
           任务会在后台运行，写入 Supabase 后自动去重。首次建议保持每个关键词 10 篇，确认无误后再扩大数量。
         </p>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <div className="mt-5 grid gap-4 sm:grid-cols-3">
+          <label className="text-sm text-warm-600">
+            目标领域
+            <select
+              value={crawlDomain}
+              onChange={(event) => handleDomainChange(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 bg-white focus:outline-none focus:border-forest-500"
+            >
+              {DOMAINS.map((d) => (
+                <option key={d.key} value={d.key}>{d.industry}</option>
+              ))}
+            </select>
+          </label>
           <label className="text-sm text-warm-600">
             每个关键词最多篇数
             <input
@@ -61,11 +82,11 @@ export default function ImportPage() {
             />
           </label>
           <label className="text-sm text-warm-600">
-            指定关键词（可留空）
+            指定关键词（可留空，默认该领域关键词）
             <input
               value={keywords}
               onChange={(event) => setKeywords(event.target.value)}
-              placeholder="例如：large language model"
+              placeholder={getDomainByKey(crawlDomain).keywords}
               className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2"
             />
           </label>

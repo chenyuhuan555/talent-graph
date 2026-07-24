@@ -8,18 +8,18 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // 深森林绿强调色
+        // 领域主题色：通过 CSS 变量运行时切换（默认 AI 森林绿，见 globals.css :root）
         forest: {
-          50: '#F0F7F3',
-          100: '#DBEDE3',
-          200: '#B7DCC8',
-          300: '#8FC6A8',
-          400: '#5FA888',
-          500: '#3D8A68',
-          600: '#2D6A4F',
-          700: '#245540',
-          800: '#1D4434',
-          900: '#163327',
+          50: 'var(--theme-50)',
+          100: 'var(--theme-100)',
+          200: 'var(--theme-200)',
+          300: 'var(--theme-300)',
+          400: 'var(--theme-400)',
+          500: 'var(--theme-500)',
+          600: 'var(--theme-600)',
+          700: 'var(--theme-700)',
+          800: 'var(--theme-800)',
+          900: 'var(--theme-900)',
         },
         // 暖灰背景
         warm: {

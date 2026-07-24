@@ -24,9 +24,9 @@ describe('typed Supabase data services', () => {
 
   it('bounds graph size and reads contacts only through the masking RPC', async () => {
     const graph = rpcClient({ nodes: [], edges: [] });
-    await getRelationshipGraph('person-1', 999, graph as never);
+    await getRelationshipGraph('person-1', 999, undefined, graph as never);
     expect(graph.rpc).toHaveBeenCalledWith('relationship_graph', {
-      center_person_id: 'person-1', max_nodes: 50,
+      center_person_id: 'person-1', max_nodes: 50, industry_filter: null,
     });
 
     const contacts = rpcClient([]);

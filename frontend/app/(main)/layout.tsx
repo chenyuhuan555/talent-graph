@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { getActiveSession, logout, subscribeToAuthChanges } from '@/lib/auth/session';
+import { DomainProvider, useDomain } from '@/components/domain-context';
+import { DOMAINS } from '@/lib/domains';
 import type { AppProfile } from '@/lib/types';
 
 const NAV = [
@@ -46,7 +48,31 @@ function Icon({ name }: { name: string }) {
   }
 }
 
+function DomainSwitcher() {
+  const { domain, setDomainKey } = useDomain();
+  return (
+    <select
+      aria-label="切换领域"
+      value={domain.key}
+      onChange={(event) => setDomainKey(event.target.value)}
+      className="mt-0.5 max-w-[150px] cursor-pointer rounded border-none bg-transparent p-0 text-[10px] text-warm-400 focus:outline-none hover:text-forest-600"
+    >
+      {DOMAINS.map((d) => (
+        <option key={d.key} value={d.key}>{d.industry}人才关系网</option>
+      ))}
+    </select>
+  );
+}
+
 export default function MainLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <DomainProvider>
+      <MainLayoutInner>{children}</MainLayoutInner>
+    </DomainProvider>
+  );
+}
+
+function MainLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<AppProfile | null>(null);
@@ -94,7 +120,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           </div>
           <div>
             <div className="text-sm font-semibold text-forest-700 leading-tight">Talent Graph</div>
-            <div className="text-[10px] text-warm-400 leading-tight">人工智能人才关系网</div>
+            <DomainSwitcher />
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto py-3 px-2.5">
