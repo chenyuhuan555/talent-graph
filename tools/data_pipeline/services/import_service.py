@@ -79,7 +79,7 @@ def _org_type(t: str | None) -> str:
 
 
 # ---------- 人才 ----------
-def upsert_person(db: Session, data: dict, source_type: str = "OpenAlex") -> Person:
+def upsert_person(db: Session, data: dict, source_type: str = "OpenAlex", industry: str = "人工智能") -> Person:
     """按外部 ID 去重查找或创建人才。返回 person。"""
     ext_id = data.get("openalex_id")
     orcid = data.get("orcid")
@@ -134,7 +134,7 @@ def upsert_person(db: Session, data: dict, source_type: str = "OpenAlex") -> Per
         id=uuid.uuid4(),
         chinese_name=name if is_chinese else None,
         english_name=None if is_chinese else name,
-        industry="人工智能",
+        industry=industry,
         source_type=source_type,
         review_status="approved",
         outreach_status="未触达",
@@ -195,7 +195,7 @@ def _country_to_location(country: str | None) -> str | None:
 
 
 # ---------- 论文 ----------
-def upsert_paper(db: Session, work: dict, source_type: str = "OpenAlex") -> Paper:
+def upsert_paper(db: Session, work: dict, source_type: str = "OpenAlex", industry: str = "人工智能") -> Paper:
     """创建或更新论文，并建立作者关系。"""
     openalex_id = work.get("openalex_id")
     paper = None
@@ -258,7 +258,7 @@ def upsert_paper(db: Session, work: dict, source_type: str = "OpenAlex") -> Pape
             "source_url": f"https://openalex.org/{au['openalex_id']}" if au.get("openalex_id") else None,
             "current_position": "研究员",
         }
-        person = upsert_person(db, person_data, source_type)
+        person = upsert_person(db, person_data, source_type, industry=industry)
         # 检查是否已有作者链接
         exists = db.query(PaperAuthor).filter(
             PaperAuthor.paper_id == paper.id, PaperAuthor.person_id == person.id
@@ -311,7 +311,7 @@ def db_stats(db: Session) -> dict:
 
 
 # ---------- GitHub 导入 ----------
-def import_github_repo(db: Session, repo_data: dict, contributors: list[dict], source_type: str = "GitHub") -> tuple[Project, int]:
+def import_github_repo(db: Session, repo_data: dict, contributors: list[dict], source_type: str = "GitHub", industry: str = "人工智能") -> tuple[Project, int]:
     """导入 GitHub 仓库及其贡献者。返回 (project, contributor_count)。"""
     # 机构：owner 作为组织
     org = None
@@ -321,7 +321,7 @@ def import_github_repo(db: Session, repo_data: dict, contributors: list[dict], s
         if not org:
             org = Organization(
                 id=uuid.uuid4(), name=owner, english_name=owner,
-                organization_type="company", industry="人工智能",
+                organization_type="company", industry=industry,
                 source_url=f"https://github.com/{owner}",
             )
             db.add(org)
@@ -361,7 +361,7 @@ def import_github_repo(db: Session, repo_data: dict, contributors: list[dict], s
             person = Person(
                 id=uuid.uuid4(),
                 english_name=username,
-                industry="人工智能",
+                industry=industry,
                 source_type=source_type,
                 review_status="approved",
                 outreach_status="未触达",
@@ -390,7 +390,7 @@ def import_github_repo(db: Session, repo_data: dict, contributors: list[dict], s
 
 
 # ---------- HuggingFace 导入 ----------
-def import_hf_model(db: Session, model_data: dict, source_type: str = "HuggingFace") -> tuple[Project, Person | None]:
+def import_hf_model(db: Session, model_data: dict, source_type: str = "HuggingFace", industry: str = "人工智能") -> tuple[Project, Person | None]:
     """导入 HF 模型为 project，作者为 person。"""
     author = model_data.get("author")
     model_id = model_data.get("model_id") or ""
@@ -425,7 +425,7 @@ def import_hf_model(db: Session, model_data: dict, source_type: str = "HuggingFa
             person = Person(
                 id=uuid.uuid4(),
                 english_name=author,
-                industry="人工智能",
+                industry=industry,
                 source_type=source_type,
                 review_status="approved",
                 outreach_status="未触达",

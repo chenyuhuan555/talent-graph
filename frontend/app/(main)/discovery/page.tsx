@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { discoverTalent } from '@/lib/data/persons';
 import { personDetailHref } from '@/lib/routes';
+import { useDomain } from '@/components/domain-context';
 import { LEVEL_COLOR } from '@/lib/types';
 
 interface DiscoveryCard {
@@ -45,12 +46,13 @@ function SourceBadge({ source }: { source?: string }) {
 }
 
 export default function DiscoveryPage() {
+  const { domain } = useDomain();
   const [data, setData] = useState<DiscoveryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'high' | 'new' | 'growth' | 'opensource'>('high');
 
   useEffect(() => {
-    discoverTalent({ pageSize: 24 }).then((result) => {
+    discoverTalent({ pageSize: 24, industry: domain.industry }).then((result) => {
       const cards = result.data.map((person) => ({
         id: person.id, name: person.chinese_name || person.english_name || '未命名', english_name: person.english_name,
         org: person.organization_name, position: person.current_position, domain: person.primary_domain,
@@ -59,7 +61,7 @@ export default function DiscoveryPage() {
       }));
       setData({ new_today: cards, high_potential: cards, paper_growth: cards, open_source: cards, hot_domains: [] });
     }).finally(() => setLoading(false));
-  }, []);
+  }, [domain.industry]);
 
   if (loading) return <div className="text-warm-400">加载真实数据中…</div>;
   if (!data) return <div className="text-red-500">加载失败</div>;

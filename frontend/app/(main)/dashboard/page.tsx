@@ -7,20 +7,22 @@ import { getDashboard } from '@/lib/data/dashboard';
 import { exportBusinessSnapshot } from '@/lib/data/exports';
 import { getActiveSession } from '@/lib/auth/session';
 import { personDetailHref } from '@/lib/routes';
+import { useDomain } from '@/components/domain-context';
 import { type AppRole, type Dashboard, LEVEL_COLOR } from '@/lib/types';
 
 const ReactECharts = dynamic(() => import('echarts-for-react'), { ssr: false });
 
 export default function DashboardPage() {
+  const { domain } = useDomain();
   const [data, setData] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<AppRole | null>(null);
   const [exportError, setExportError] = useState('');
 
   useEffect(() => {
-    getDashboard().then(setData).finally(() => setLoading(false));
+    getDashboard(domain.industry).then(setData).finally(() => setLoading(false));
     getActiveSession().then((active) => setRole(active?.profile.role || null));
-  }, []);
+  }, [domain.industry]);
 
   async function downloadExport() {
     if (!role) return;
@@ -74,7 +76,7 @@ export default function DashboardPage() {
     <div>
       <header className="mb-6 flex items-center justify-between">
         <div><h1 className="text-xl font-semibold text-warm-600">首页看板</h1>
-        <p className="text-sm text-warm-400 mt-0.5">人工智能人才库整体情况 · 首期覆盖大模型 / 多模态 / AI Infra</p></div>
+        <p className="text-sm text-warm-400 mt-0.5">{domain.industry}人才库整体情况 · 关键词：{domain.keywords}</p></div>
         {(role === 'admin' || role === 'leader') && <button onClick={() => void downloadExport()} className="rounded-lg border border-forest-200 px-4 py-2 text-sm text-forest-700 hover:bg-forest-50">导出业务数据</button>}
       </header>
       {exportError && <div className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{exportError}</div>}

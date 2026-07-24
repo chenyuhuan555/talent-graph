@@ -13,6 +13,11 @@ on:
         required: false
         default: ''
         type: string
+      domain:
+        description: '目标领域（中文枚举：人工智能/量子计算/生物医药/具身智能/核聚变/新能源）；留空默认人工智能'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -51,10 +56,12 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           PYTHONPATH: tools:tools/data_pipeline:tools/crawler_backend
-        run: >-
-          python -m data_pipeline.scripts.initial_import
-          --max "${{ inputs.max }}"
-          --keywords "${{ inputs.keywords }}"
+        run: |
+          ARGS=(--max "${{ inputs.max }}" --keywords "${{ inputs.keywords }}")
+          if [ -n "${{ inputs.domain }}" ]; then
+            ARGS+=(--domain "${{ inputs.domain }}")
+          fi
+          python -m data_pipeline.scripts.initial_import "${ARGS[@]}"
       - name: Rebuild relationships and talent scores
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}

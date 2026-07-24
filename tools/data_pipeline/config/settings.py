@@ -88,6 +88,44 @@ class Settings:
                       "training framework", "serving", "infrastructure", "scalab"],
     }
 
+    # 顶层领域 -> 采集关键词（与前端 frontend/lib/domains.ts 保持一致）
+    # key 为 persons.industry 中文枚举值；AI 为默认领域。
+    INDUSTRY_KEYWORDS: dict[str, list[str]] = {
+        "人工智能": [
+            "large language model", "multimodal AI", "AI agent", "AI infrastructure",
+        ],
+        "量子计算": [
+            "quantum computing", "quantum error correction", "quantum algorithm", "qubit",
+        ],
+        "生物医药": [
+            "drug discovery", "bioinformatics", "genomics", "protein folding", "CRISPR",
+        ],
+        "具身智能": [
+            "embodied AI", "robotics manipulation", "humanoid robot", "locomotion", "Sim2Real",
+        ],
+        "核聚变": [
+            "nuclear fusion", "tokamak", "stellarator", "plasma physics", "inertial confinement",
+        ],
+        "新能源": [
+            "solid state battery", "perovskite solar", "hydrogen energy", "energy storage", "EV battery",
+        ],
+    }
+
+    # 领域 -> arXiv 分类（可选，采集时叠加）
+    INDUSTRY_ARXIV_CATEGORIES: dict[str, list[str]] = {
+        "人工智能": ["cs.AI", "cs.CL", "cs.LG", "cs.CV", "cs.IR"],
+        "量子计算": ["quant-ph", "cs.ET"],
+        "生物医药": ["q-bio", "cs.CE"],
+        "具身智能": ["cs.RO", "cs.AI"],
+        "核聚变": ["physics.plasm-ph", "nucl-th"],
+        "新能源": ["physics.app-ph", "eess.IV"],
+    }
+
+    def keywords_for_industry(self, industry: str | None = None) -> list[str]:
+        """返回指定领域的默认采集关键词；未知/空则回退到 AI 关键词。"""
+        key = industry or "人工智能"
+        return list(self.INDUSTRY_KEYWORDS.get(key, self.INDUSTRY_KEYWORDS["人工智能"]))
+
     @property
     def is_sqlite(self) -> bool:
         return self.DATABASE_URL.startswith("sqlite")

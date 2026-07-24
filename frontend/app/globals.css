@@ -8,8 +8,20 @@
   --border: #EAE8E3;
   --text: #2A2A28;
   --text-muted: #8C887E;
-  --accent: #2D6A4F;
-  --accent-light: #3D8A68;
+
+  /* 领域主题色（默认：人工智能 森林绿），由 DomainProvider 运行时覆盖 */
+  --theme-50: #F0F7F3;
+  --theme-100: #DBEDE3;
+  --theme-200: #B7DCC8;
+  --theme-300: #8FC6A8;
+  --theme-400: #5FA888;
+  --theme-500: #3D8A68;
+  --theme-600: #2D6A4F;
+  --theme-700: #245540;
+  --theme-800: #1D4434;
+  --theme-900: #163327;
+  --accent: var(--theme-600);
+  --accent-light: var(--theme-500);
 }
 
 * {

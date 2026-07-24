@@ -4,7 +4,7 @@ import { boundedPage, boundedPageSize, defaultClient, type DataClient, type Page
 
 export interface PersonSearch {
   page?: number; pageSize?: number; searchTerm?: string; domain?: string; level?: string;
-  organizationId?: string; ownerId?: string;
+  organizationId?: string; ownerId?: string; industry?: string;
 }
 
 export async function searchPersons(filters: PersonSearch = {}, client: DataClient = defaultClient()): Promise<PageResult<Person>> {
@@ -16,6 +16,7 @@ export async function searchPersons(filters: PersonSearch = {}, client: DataClie
     owner_filter: filters.ownerId || null,
     page_number: boundedPage(filters.page),
     page_size: boundedPageSize(filters.pageSize),
+    industry_filter: filters.industry || null,
   });
   return requireData(result) as unknown as PageResult<Person>;
 }
@@ -25,6 +26,7 @@ export async function discoverTalent(filters: PersonSearch = {}, client: DataCli
     search_term: filters.searchTerm || null, domain_filter: filters.domain || null,
     level_filter: filters.level || null, page_number: boundedPage(filters.page),
     page_size: boundedPageSize(filters.pageSize),
+    industry_filter: filters.industry || null,
   });
   return requireData(result) as unknown as PageResult<Person>;
 }

@@ -5,18 +5,19 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { searchPersons } from '@/lib/data/persons';
 import { personDetailHref } from '@/lib/routes';
+import { useDomain } from '@/components/domain-context';
 import { LEVEL_COLOR, type Person } from '@/lib/types';
 import { PersonForm } from '@/components/forms/person-form';
 
-const DOMAINS = ['大模型', '多模态', 'AI Infra'];
 const LEVELS = ['S', 'A', 'B', 'C'];
 
 export default function PersonsPage() {
   const router = useRouter();
+  const { domain } = useDomain();
   const [persons, setPersons] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [keyword, setKeyword] = useState('');
-  const [domain, setDomain] = useState('');
+  const [direction, setDirection] = useState('');
   const [level, setLevel] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -25,19 +26,19 @@ export default function PersonsPage() {
 
   useEffect(() => {
     setLoading(true);
-    searchPersons({ page, pageSize, searchTerm: keyword, domain, level }).then((result) => {
+    searchPersons({ page, pageSize, searchTerm: keyword, domain: direction, level, industry: domain.industry }).then((result) => {
       setPersons(result.data);
       setTotal(result.pagination.totalCount);
     }).finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [keyword, domain, level, page]);
+  }, [keyword, direction, level, page, domain.industry]);
 
   return (
     <div>
       <header className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-warm-600">人才库</h1>
-          <p className="text-sm text-warm-400 mt-0.5">人工智能人才基础库 · {persons.length} 条结果</p>
+          <p className="text-sm text-warm-400 mt-0.5">{domain.industry}人才基础库 · {persons.length} 条结果</p>
         </div>
         <button type="button" onClick={() => setShowForm(true)} className="px-4 py-2 bg-forest-600 text-white text-sm rounded-lg hover:bg-forest-700 transition flex items-center">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mr-1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -58,9 +59,9 @@ export default function PersonsPage() {
             className="w-full pl-9 pr-3 py-2 border border-warm-200 rounded-lg text-sm focus:outline-none focus:border-forest-500"
           />
         </div>
-        <select value={domain} onChange={(e) => { setDomain(e.target.value); setPage(1); }} className="px-3 py-2 border border-warm-200 rounded-lg text-sm bg-white focus:outline-none focus:border-forest-500">
+        <select value={direction} onChange={(e) => { setDirection(e.target.value); setPage(1); }} className="px-3 py-2 border border-warm-200 rounded-lg text-sm bg-white focus:outline-none focus:border-forest-500">
           <option value="">全部方向</option>
-          {DOMAINS.map((d) => <option key={d} value={d}>{d}</option>)}
+          {(domain.subDirections || []).map((d) => <option key={d} value={d}>{d}</option>)}
         </select>
         <select value={level} onChange={(e) => { setLevel(e.target.value); setPage(1); }} className="px-3 py-2 border border-warm-200 rounded-lg text-sm bg-white focus:outline-none focus:border-forest-500">
           <option value="">全部级别</option>

@@ -2,9 +2,11 @@
 
 用法:
     cd data_pipeline
-    PYTHONPATH=. python scripts/initial_import.py [--max 600] [--keywords "large language model,multimodal"]
+    PYTHONPATH=. python scripts/initial_import.py [--max 600] [--keywords "large language model,multimodal"] [--domain 量子计算]
 
 目标: 人才 1000+ / 论文 5000+ / 机构 300+ / 关系 20000+
+默认领域为人工智能；--domain 可指定顶层领域（量子计算/生物医药/具身智能/核聚变/新能源），
+留空关键词时自动使用该领域的默认关键词。
 """
 from __future__ import annotations
 
@@ -37,8 +39,8 @@ logging.basicConfig(
 logger = logging.getLogger("initial_import")
 
 
-def run(max_works: int, keywords: list[str] | None = None):
-    keywords = keywords or settings.SEARCH_KEYWORDS
+def run(max_works: int, keywords: list[str] | None = None, industry: str = "人工智能"):
+    keywords = keywords or settings.keywords_for_industry(industry)
     logger.info("=" * 60)
     logger.info("OpenAlex 初始导入开始")
     logger.info(f"关键词: {keywords}")
@@ -60,7 +62,7 @@ def run(max_works: int, keywords: list[str] | None = None):
     try:
         for kw in keywords:
             kw_count = 0
-            logger.info(f">>> 开始采集关键词: [{kw}]")
+            logger.info(f">>> 开始采集关键词: [{kw}] (领域: {industry})")
             for work in collector.search_works(kw, max_results=per_keyword):
                 try:
                     # 方向分类
@@ -71,7 +73,7 @@ def run(max_works: int, keywords: list[str] | None = None):
                         # 不属于首期方向的论文跳过（但仍记录少量以丰富数据）
                         work["domains"] = []
 
-                    paper = upsert_paper(db, work, source_type="OpenAlex")
+                    paper = upsert_paper(db, work, source_type="OpenAlex", industry=industry)
                     db.commit()
                     stats["works"] += 1
                     kw_count += 1
@@ -116,7 +118,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="OpenAlex 初始导入")
     parser.add_argument("--max", type=int, default=200, help="每个关键词最大论文数（默认200）")
     parser.add_argument("--keywords", type=str, default=None, help="逗号分隔的关键词，覆盖默认")
+    parser.add_argument("--domain", type=str, default=None,
+                        help="目标领域（persons.industry 中文枚举，如 量子计算）；留空默认人工智能")
     args = parser.parse_args()
 
     kws = args.keywords.split(",") if args.keywords else None
-    run(max_works=args.max, keywords=kws)
+    run(max_works=args.max, keywords=kws, industry=args.domain or "人工智能")

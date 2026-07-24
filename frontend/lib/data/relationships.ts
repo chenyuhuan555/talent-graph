@@ -2,9 +2,10 @@ import type { GraphData, Relationship, RelationshipEvidence } from '@/lib/types'
 import { requireData } from './errors';
 import { defaultClient, type DataClient } from './shared';
 
-export async function getRelationshipGraph(personId: string, maxNodes = 20, client: DataClient = defaultClient()): Promise<GraphData> {
+export async function getRelationshipGraph(personId: string, maxNodes = 20, industry?: string, client: DataClient = defaultClient()): Promise<GraphData> {
   const raw = requireData(await client.rpc('relationship_graph', {
     center_person_id: personId, max_nodes: Math.min(50, Math.max(1, Math.trunc(maxNodes))),
+    industry_filter: industry || null,
   })) as GraphData;
   return {
     ...raw,

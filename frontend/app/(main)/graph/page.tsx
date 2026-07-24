@@ -6,6 +6,8 @@ import { searchPersons } from '@/lib/data/persons';
 import { getRelationshipEvidence, getRelationshipGraph } from '@/lib/data/relationships';
 import { STRENGTH_LABEL, REL_TYPE_LABEL, type GraphData, type GraphNode, type GraphEdge, type RelationshipEvidence, type Person } from '@/lib/types';
 import { externalHttpHref } from '@/lib/routes';
+import { useDomain } from '@/components/domain-context';
+import { getDomainByIndustry } from '@/lib/domains';
 
 interface SimNode extends GraphNode {
   x: number; y: number; vx: number; vy: number; fx?: number; fy?: number;
@@ -43,9 +45,16 @@ const EDGE_COLOR: Record<string, string> = {
   classmate: '#B8B4A9',
 };
 
+/** 节点颜色：人才按所属领域主题色，机构/论文/项目按固定类型色。 */
+function nodeColor(n: GraphNode): string {
+  if (n.node_type === 'person') return getDomainByIndustry(n.industry).palette['600'];
+  return NODE_COLOR[n.node_type || 'person'] || '#8C887E';
+}
+
 export default function GraphPage() {
   const searchParams = useSearchParams();
   const initialPerson = searchParams.get('person');
+  const { domain } = useDomain();
   const [personId, setPersonId] = useState(initialPerson || '');
   const [persons, setPersons] = useState<Person[]>([]);
   const [graph, setGraph] = useState<GraphData | null>(null);
@@ -58,14 +67,14 @@ export default function GraphPage() {
   const rafRef = useRef<number>(0);
 
   useEffect(() => {
-    searchPersons({ pageSize: 100 }).then((result) => setPersons(result.data));
-  }, []);
+    searchPersons({ pageSize: 100, industry: domain.industry }).then((result) => setPersons(result.data));
+  }, [domain.industry]);
 
   const loadGraph = useCallback((pid: string) => {
     if (!pid) return;
     setLoading(true);
     setSelectedEdge(null);
-    getRelationshipGraph(pid, 20).then((loaded) => {
+    getRelationshipGraph(pid, 20, domain.industry).then((loaded) => {
       const g = onlyVerified ? { ...loaded, edges: loaded.edges.filter((edge) => edge.is_verified) } : loaded;
       setGraph(g);
       // 初始化节点位置：中心节点居中，其余环形分布
@@ -82,7 +91,7 @@ export default function GraphPage() {
       runSimulation(g);
     }).finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onlyVerified]);
+  }, [onlyVerified, domain.industry]);
 
   useEffect(() => {
     if (initialPerson) loadGraph(initialPerson);
@@ -238,8 +247,8 @@ export default function GraphPage() {
                 const pathFn = SHAPE_PATH[n.shape || 'circle'] || SHAPE_PATH.circle;
                 return (
                   <g key={n.id} transform={`translate(${n.x},${n.y})`} className="cursor-pointer">
-                    <path d={pathFn(size)} fill={NODE_COLOR[n.node_type || 'person'] || '#8C887E'} opacity={isCenter ? 1 : 0.9} stroke="#fff" strokeWidth={2} />
-                    {isCenter && <path d={pathFn(size + 5)} fill="none" stroke={NODE_COLOR[n.node_type || 'person']} strokeWidth={1} opacity={0.3} />}
+                    <path d={pathFn(size)} fill={nodeColor(n)} opacity={isCenter ? 1 : 0.9} stroke="#fff" strokeWidth={2} />
+                    {isCenter && <path d={pathFn(size + 5)} fill="none" stroke={nodeColor(n)} strokeWidth={1} opacity={0.3} />}
                     <text y={size + 14} textAnchor="middle" fontSize="11" fill="#4A4A45" fontWeight={isCenter ? 600 : 400}>
                       {(n.label || '').length > 8 ? (n.label || '').slice(0, 7) + '…' : n.label}
                     </text>

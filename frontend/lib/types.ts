@@ -76,7 +76,7 @@ export interface Match {
   company_name?: string; person_name?: string; chinese_name?: string; english_name?: string;
 }
 
-export interface GraphNode { id: string; label?: string; chinese_name?: string; english_name?: string; node_type?: string; shape?: string; org?: string; domain?: string; avatar?: string }
+export interface GraphNode { id: string; label?: string; chinese_name?: string; english_name?: string; node_type?: string; shape?: string; org?: string; domain?: string; industry?: string; avatar?: string }
 export interface GraphEdge { id?: string; source?: string; target?: string; person_a_id?: string; person_b_id?: string; relationship_type: string; relationship_strength?: string; strength?: string; score: number; is_inferred: boolean; is_verified: boolean; evidence_count?: number; label?: string }
 export interface GraphData { center?: GraphNode; nodes: GraphNode[]; edges: GraphEdge[]; max_nodes?: number; maxNodes?: number }
 
