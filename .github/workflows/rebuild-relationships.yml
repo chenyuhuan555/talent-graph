@@ -1,0 +1,45 @@
+name: Rebuild relationships and talent scores
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: talent-graph-relationship-rebuild
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Check required database secret
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::GitHub Actions Secret SUPABASE_DB_URL is missing"
+            exit 1
+          fi
+          case "$SUPABASE_DB_URL" in
+            postgresql://*|postgresql+psycopg://*) ;;
+            *)
+              echo "::error::SUPABASE_DB_URL must be a PostgreSQL connection string"
+              exit 1
+              ;;
+          esac
+      - name: Install crawler dependencies
+        run: python -m pip install -r tools/data_pipeline/requirements.txt
+      - name: Rebuild relationships and talent scores
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PYTHONPATH: tools:tools/data_pipeline:tools/crawler_backend
+        run: >-
+          python -c
+          "from tasks.daily_update import rebuild_relations_and_scores; rebuild_relations_and_scores()"
