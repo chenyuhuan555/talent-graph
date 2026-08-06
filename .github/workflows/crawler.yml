@@ -23,7 +23,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: talent-graph-crawler
+  group: talent-graph-crawler-${{ inputs.domain || '人工智能' }}
   cancel-in-progress: false
 
 jobs:
@@ -62,10 +62,3 @@ jobs:
             ARGS+=(--domain "${{ inputs.domain }}")
           fi
           python -m data_pipeline.scripts.initial_import "${ARGS[@]}"
-      - name: Rebuild relationships and talent scores
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          PYTHONPATH: tools:tools/data_pipeline:tools/crawler_backend
-        run: >-
-          python -c
-          "from tasks.daily_update import rebuild_relations_and_scores; rebuild_relations_and_scores()"
