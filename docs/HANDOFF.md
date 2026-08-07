@@ -91,14 +91,15 @@ SUPABASE_DB_URL
 ```text
 前端导入页
   → trigger-crawler Edge Function
-  → GitHub Actions workflow_dispatch
-  → 安装 tools/data_pipeline/requirements.txt
+  → GitHub Actions crawler.yml
   → OpenAlex 采集
-  → SQLAlchemy 写入 Supabase PostgreSQL
-  → 重建关系与人才评分
+  → 写入 Supabase PostgreSQL
+  → 采集工作流结束
 ```
 
 运行入口：[Run data crawler](https://github.com/chenyuhuan555/talent-graph/actions/workflows/crawler.yml)
+
+采集完成一批后，手动运行[关系与人才评分重建工作流](https://github.com/chenyuhuan555/talent-graph/actions/workflows/rebuild-relationships.yml)一次。`crawler.yml` 与 `rebuild-relationships.yml` 共用 `talent-graph-db-write`，并设置 `queue: max`、`cancel-in-progress: false`，因此数据库写入串行，最多保留 100 个 pending runs；达到上限后新增运行会被取消。
 
 可选参数：
 
@@ -134,9 +135,14 @@ GitHub Actions 中应按顺序看到：
 1. `Check required database secret` 成功
 2. `Install crawler dependencies` 成功
 3. `Import public research data` 成功
-4. `Rebuild relationships and talent scores` 成功
 
-成功后，在网站刷新页面，检查论文、人才、机构和关系数量是否增加。若导入成功但页面仍显示旧数据，先退出登录再重新登录，并检查浏览器缓存。
+采集工作流到此结束。随后在[关系与人才评分重建工作流](https://github.com/chenyuhuan555/talent-graph/actions/workflows/rebuild-relationships.yml)中手动运行：
+
+1. `Check required database secret` 成功
+2. `Install crawler dependencies` 成功
+3. `Rebuild relationships and talent scores` 成功
+
+只有关系重建工作流成功后，关系和人才评分才会刷新。之后在网站刷新页面，检查论文、人才、机构和关系数量是否增加。若导入成功但页面仍显示旧数据，先退出登录再重新登录，并检查浏览器缓存。
 
 ## 8. 本地开发与验证
 
