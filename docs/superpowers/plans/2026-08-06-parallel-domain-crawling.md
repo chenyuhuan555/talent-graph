@@ -1,10 +1,10 @@
-# Parallel Domain Crawling Implementation Plan
+# Domain Crawling and Independent Relationship Rebuild Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Allow different talent domains to import concurrently while moving the expensive full relationship rebuild into one independent manual workflow.
+**Goal:** Serialize talent-domain imports safely while moving the expensive full relationship rebuild into one independent manual workflow.
 
-**Architecture:** Keep `.github/workflows/crawler.yml` backward-compatible for its three existing inputs, but make it import-only and scope concurrency by domain. Add `.github/workflows/rebuild-relationships.yml` with a fixed global concurrency group so administrators can run one rebuild after all imports finish.
+**Architecture:** Keep `.github/workflows/crawler.yml` backward-compatible for its three existing inputs, but make it import-only with a fixed global concurrency group so imports queue safely. Add `.github/workflows/rebuild-relationships.yml` with a fixed global concurrency group so administrators can run one rebuild after all imports finish.
 
 **Tech Stack:** GitHub Actions YAML, Python contract tests with pytest, existing SQLAlchemy data pipeline.
 
@@ -27,10 +27,10 @@ CRAWLER = ROOT / ".github" / "workflows" / "crawler.yml"
 REBUILD = ROOT / ".github" / "workflows" / "rebuild-relationships.yml"
 
 
-def test_crawler_is_import_only_and_scoped_by_domain() -> None:
+def test_crawler_is_import_only_and_serialized() -> None:
     workflow = CRAWLER.read_text(encoding="utf-8")
 
-    assert "group: talent-graph-crawler-${{ inputs.domain || '人工智能' }}" in workflow
+    assert "group: talent-graph-crawler\n" in workflow
     assert "python -m data_pipeline.scripts.initial_import" in workflow
     assert "rebuild_relations_and_scores" not in workflow
 
@@ -53,21 +53,21 @@ Run:
 .\.migration-venv\Scripts\python.exe -m pytest tools/tests/test_workflow_contracts.py -q
 ```
 
-Expected: both tests fail because the crawler still has a global concurrency group and rebuild step, and the independent rebuild workflow does not exist.
+Expected: both tests pass once the crawler contract and independent rebuild workflow are present.
 
-### Task 2: Make the crawler import-only and domain-scoped
+### Task 2: Make the crawler import-only and globally serialized
 
 **Files:**
 - Modify: `.github/workflows/crawler.yml`
 - Test: `tools/tests/test_workflow_contracts.py`
 
-- [ ] **Step 1: Scope concurrency to the requested domain**
+- [ ] **Step 1: Serialize all crawler imports globally**
 
 Replace the existing concurrency block with:
 
 ```yaml
 concurrency:
-  group: talent-graph-crawler-${{ inputs.domain || '人工智能' }}
+  group: talent-graph-crawler
   cancel-in-progress: false
 ```
 
@@ -215,7 +215,7 @@ Expected: the branch is available on GitHub without force-pushing.
 
 - [ ] **Step 2: Verify the workflow definitions on the pushed commit**
 
-Check GitHub Actions for both `Run data crawler` and `Rebuild relationships and talent scores`. Confirm future crawler runs no longer contain a rebuild step and different domain values produce different concurrency groups.
+Check GitHub Actions for both `Run data crawler` and `Rebuild relationships and talent scores`. Confirm future crawler runs no longer contain a rebuild step, imports queue under the single global crawler group, and the manual rebuild runs once after a batch.
 
 - [ ] **Step 3: Preserve the current run**
 

@@ -6,10 +6,10 @@ CRAWLER = ROOT / ".github" / "workflows" / "crawler.yml"
 REBUILD = ROOT / ".github" / "workflows" / "rebuild-relationships.yml"
 
 
-def test_crawler_is_import_only_and_scoped_by_domain() -> None:
+def test_crawler_is_import_only_and_serialized() -> None:
     workflow = CRAWLER.read_text(encoding="utf-8")
 
-    assert "group: talent-graph-crawler-${{ inputs.domain || '人工智能' }}" in workflow
+    assert "group: talent-graph-crawler\n" in workflow
     assert "python -m data_pipeline.scripts.initial_import" in workflow
     assert "rebuild_relations_and_scores" not in workflow
 

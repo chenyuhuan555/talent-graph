@@ -23,7 +23,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: talent-graph-crawler-${{ inputs.domain || '人工智能' }}
+  group: talent-graph-crawler
   cancel-in-progress: false
 
 jobs:
