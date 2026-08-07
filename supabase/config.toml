@@ -1,0 +1,25 @@
+project_id = "talent-graph"
+
+[api]
+enabled = true
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+major_version = 15
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+enable_signup = false
+
+[storage]
+enabled = true
+file_size_limit = "20MiB"
+
+[functions.manage-member]
+verify_jwt = true
+
+[functions.translate-content]
+verify_jwt = true

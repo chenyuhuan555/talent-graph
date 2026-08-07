@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { api, type Outreach } from '@/lib/api';
+import { getOutreachQueue } from '@/lib/data/outreach';
+import { personDetailHref } from '@/lib/routes';
+import type { Outreach } from '@/lib/types';
 
 const TABS = [
   { key: 'today', label: '今日待跟进' },
@@ -19,7 +21,10 @@ export default function OutreachPage() {
 
   useEffect(() => {
     setLoading(true);
-    api.get<Outreach[]>(`/api/outreach/${tab}`).then(setData).finally(() => setLoading(false));
+    getOutreachQueue().then((result) => {
+      const now = Date.now();
+      setData(result.data.filter((item) => tab === 'willing-refer' ? item.willing_to_refer : tab === 'overdue' ? Boolean(item.next_follow_up_at && new Date(item.next_follow_up_at).getTime() < now) : true));
+    }).finally(() => setLoading(false));
   }, [tab]);
 
   return (
@@ -56,7 +61,7 @@ export default function OutreachPage() {
             ) : data.map((o) => (
               <tr key={o.id} className="border-b border-warm-100 hover:bg-warm-50 transition">
                 <td className="px-4 py-3">
-                  <Link href={`/persons/${o.person_id}`} className="text-forest-700 hover:underline">{o.position_title}</Link>
+                  <Link href={personDetailHref(o.person_id)} className="text-forest-700 hover:underline">{o.position_title || '查看人才'}</Link>
                 </td>
                 <td className="px-4 py-3 text-warm-500">{o.outreach_channel || '—'}</td>
                 <td className="px-4 py-3 text-warm-500">{o.outreach_at ? new Date(o.outreach_at).toLocaleDateString('zh-CN') : '—'}</td>

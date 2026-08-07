@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { api, LEVEL_COLOR } from '@/lib/api';
+import { discoverTalent } from '@/lib/data/persons';
+import { personDetailHref } from '@/lib/routes';
+import { useDomain } from '@/components/domain-context';
+import { LEVEL_COLOR } from '@/lib/types';
 
 interface DiscoveryCard {
   id: string;
@@ -43,13 +46,22 @@ function SourceBadge({ source }: { source?: string }) {
 }
 
 export default function DiscoveryPage() {
+  const { domain } = useDomain();
   const [data, setData] = useState<DiscoveryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'high' | 'new' | 'growth' | 'opensource'>('high');
 
   useEffect(() => {
-    api.get<DiscoveryData>('/api/talent/discovery?limit=24').then(setData).finally(() => setLoading(false));
-  }, []);
+    discoverTalent({ pageSize: 24, industry: domain.industry }).then((result) => {
+      const cards = result.data.map((person) => ({
+        id: person.id, name: person.chinese_name || person.english_name || '未命名', english_name: person.english_name,
+        org: person.organization_name, position: person.current_position, domain: person.primary_domain,
+        level: person.talent_level, paper_count: person.paper_count, project_count: person.project_count,
+        relationship_count: person.relationship_count, source_type: person.source_type,
+      }));
+      setData({ new_today: cards, high_potential: cards, paper_growth: cards, open_source: cards, hot_domains: [] });
+    }).finally(() => setLoading(false));
+  }, [domain.industry]);
 
   if (loading) return <div className="text-warm-400">加载真实数据中…</div>;
   if (!data) return <div className="text-red-500">加载失败</div>;
@@ -98,7 +110,7 @@ export default function DiscoveryPage() {
         {cards.length === 0 ? (
           <div className="col-span-3 text-center py-12 text-warm-400 text-sm">暂无数据</div>
         ) : cards.map((p) => (
-          <Link key={p.id} href={`/persons/${p.id}`} className="surface p-5 hover:border-forest-300 transition">
+          <Link key={p.id} href={personDetailHref(p.id)} className="surface p-5 hover:border-forest-300 transition">
             <div className="flex items-start mb-3">
               <div className="w-11 h-11 rounded-xl bg-forest-100 text-forest-700 flex items-center justify-center text-base font-semibold mr-3 shrink-0">
                 {(p.name || '?')[0]}

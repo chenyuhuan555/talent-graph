@@ -1,123 +1,107 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { api, type ResumeParseResult } from '@/lib/api';
+import { useEffect, useState } from 'react';
+
+import { getActiveSession } from '@/lib/auth/session';
+import { triggerCrawler } from '@/lib/data/crawler';
+import { useDomain } from '@/components/domain-context';
+import { DOMAINS, getDomainByKey } from '@/lib/domains';
+import type { AppProfile } from '@/lib/types';
 
 export default function ImportPage() {
-  const [result, setResult] = useState<ResumeParseResult | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const { domain: currentDomain } = useDomain();
+  const [profile, setProfile] = useState<AppProfile | null>(null);
+  const [max, setMax] = useState('10');
+  const [crawlDomain, setCrawlDomain] = useState(currentDomain.key);
+  const [keywords, setKeywords] = useState(currentDomain.keywords);
+  const [running, setRunning] = useState(false);
+  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
 
-  async function handleFile(file: File) {
-    setUploading(true);
+  useEffect(() => {
+    void getActiveSession().then((session) => setProfile(session?.profile ?? null));
+  }, []);
+
+  function handleDomainChange(next: string) {
+    setCrawlDomain(next);
+    setKeywords(getDomainByKey(next).keywords);
+  }
+
+  async function handleStart() {
+    setRunning(true);
+    setMessage('');
     setError('');
-    setResult(null);
     try {
-      const data = await api.upload<ResumeParseResult>('/api/resume/upload', file);
-      setResult(data);
-    } catch (err: any) {
-      setError(err.message);
+      const result = await triggerCrawler({ max: Number(max), keywords, domain: getDomainByKey(crawlDomain).industry });
+      setMessage(`「${getDomainByKey(crawlDomain).industry}」采集任务已启动，每个关键词最多 ${result.max} 篇。后台运行期间可以继续使用网站。`);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '无法启动采集任务');
     } finally {
-      setUploading(false);
+      setRunning(false);
     }
   }
 
+  if (profile?.role !== 'admin') {
+    return <div className="surface p-6 text-sm text-warm-500">只有管理员可以使用数据采集。</div>;
+  }
+
   return (
-    <div>
+    <div className="max-w-2xl">
       <header className="mb-6">
         <h1 className="text-xl font-semibold text-warm-600">数据导入</h1>
-        <p className="text-sm text-warm-400 mt-0.5">简历上传与解析 · 解析后需人工确认，不直接覆盖已有数据</p>
+        <p className="mt-1 text-sm text-warm-400">从公开科研和技术数据源采集最新人才、论文与机构。</p>
       </header>
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="surface p-5">
-          <h3 className="text-sm font-medium text-warm-600 mb-3">简历上传</h3>
-          <div
-            onClick={() => inputRef.current?.click()}
-            className="border-2 border-dashed border-warm-300 rounded-xl p-10 text-center cursor-pointer hover:border-forest-400 hover:bg-forest-50/30 transition"
-          >
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#8C887E" strokeWidth="1.5" className="mx-auto mb-3">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
-            <div className="text-sm text-warm-500">{uploading ? '解析中…' : '点击或拖拽上传 PDF / DOCX'}</div>
-            <div className="text-xs text-warm-400 mt-1">支持 PDF、DOC、DOCX 格式</div>
-            <input ref={inputRef} type="file" accept=".pdf,.doc,.docx" className="hidden"
-              onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
-          </div>
-          {error && <div className="mt-3 text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</div>}
+      <section className="surface p-6">
+        <h2 className="text-sm font-medium text-warm-600">一键采集</h2>
+        <p className="mt-2 text-sm leading-6 text-warm-500">
+          任务会在后台运行，写入 Supabase 后自动去重。首次建议保持每个关键词 10 篇，确认无误后再扩大数量。
+        </p>
+        <div className="mt-5 grid gap-4 sm:grid-cols-3">
+          <label className="text-sm text-warm-600">
+            目标领域
+            <select
+              value={crawlDomain}
+              onChange={(event) => handleDomainChange(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2 bg-white focus:outline-none focus:border-forest-500"
+            >
+              {DOMAINS.map((d) => (
+                <option key={d.key} value={d.key}>{d.industry}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm text-warm-600">
+            每个关键词最多篇数
+            <input
+              value={max}
+              onChange={(event) => setMax(event.target.value)}
+              type="number"
+              min={1}
+              max={600}
+              className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2"
+            />
+          </label>
+          <label className="text-sm text-warm-600">
+            指定关键词（可留空，默认该领域关键词）
+            <input
+              value={keywords}
+              onChange={(event) => setKeywords(event.target.value)}
+              placeholder={getDomainByKey(crawlDomain).keywords}
+              className="mt-1 w-full rounded-lg border border-warm-200 px-3 py-2"
+            />
+          </label>
         </div>
-
-        <div className="surface p-5">
-          <h3 className="text-sm font-medium text-warm-600 mb-3">其他导入方式</h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center px-3 py-2.5 border border-warm-200 rounded-lg text-warm-500">
-              <span className="flex-1">批量导入 Excel</span>
-              <span className="text-xs text-warm-400">即将支持</span>
-            </div>
-            <div className="flex items-center px-3 py-2.5 border border-warm-200 rounded-lg text-warm-500">
-              <span className="flex-1">导入论文 JSON（OpenAlex / arXiv）</span>
-              <span className="text-xs text-warm-400">即将支持</span>
-            </div>
-            <div className="flex items-center px-3 py-2.5 border border-warm-200 rounded-lg text-warm-500">
-              <span className="flex-1">导入作者数据</span>
-              <span className="text-xs text-warm-400">即将支持</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {result && (
-        <div className="surface p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-warm-600">解析结果预览</h3>
-            <span className="text-xs text-warm-400">⚠ 请确认后再入库，不会覆盖已有数据</span>
-          </div>
-          <div className="grid grid-cols-4 gap-4 mb-4">
-            <Field label="姓名" value={result.name} />
-            <Field label="邮箱" value={result.email} />
-            <Field label="电话" value={result.phone} />
-            <Field label="所在地" value={result.location} />
-          </div>
-          {result.domains.length > 0 && (
-            <div className="mb-4">
-              <div className="text-xs text-warm-400 mb-1">识别方向</div>
-              <div className="flex gap-2">{result.domains.map((d) => <span key={d} className="text-xs px-2 py-0.5 rounded bg-forest-50 text-forest-700">{d}</span>)}</div>
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-4">
-            <Section title="教育经历" items={result.education} />
-            <Section title="工作经历" items={result.work_experience} />
-            <Section title="项目经历" items={result.projects} />
-            <Section title="论文" items={result.papers} />
-          </div>
-          {result.skills.length > 0 && (
-            <div className="mt-4">
-              <div className="text-xs text-warm-400 mb-1">技能</div>
-              <div className="flex flex-wrap gap-1.5">{result.skills.map((s, i) => <span key={i} className="text-xs px-2 py-0.5 rounded bg-warm-100 text-warm-600">{typeof s === 'string' ? s : JSON.stringify(s)}</span>)}</div>
-            </div>
-          )}
-          <div className="mt-5 flex gap-2">
-            <button className="px-4 py-2 bg-forest-600 text-white text-sm rounded-lg hover:bg-forest-700">确认入库</button>
-            <button onClick={() => setResult(null)} className="px-4 py-2 border border-warm-200 text-warm-600 text-sm rounded-lg hover:bg-warm-50">取消</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Field({ label, value }: { label: string; value?: string }) {
-  return <div><div className="text-xs text-warm-400 mb-1">{label}</div><div className="text-sm text-warm-600">{value || '—'}</div></div>;
-}
-
-function Section({ title, items }: { title: string; items: any[] }) {
-  return (
-    <div>
-      <div className="text-xs text-warm-400 mb-1">{title}（{items.length}）</div>
-      {items.length === 0 ? <div className="text-xs text-warm-400">无</div> : (
-        <div className="space-y-1">{items.slice(0, 5).map((it, i) => <div key={i} className="text-xs text-warm-500 bg-warm-50 rounded px-2 py-1">{typeof it === 'string' ? it : it.raw || JSON.stringify(it)}</div>)}</div>
-      )}
+        <button
+          type="button"
+          onClick={() => void handleStart()}
+          disabled={running}
+          className="mt-5 rounded-lg bg-forest-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-forest-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {running ? '正在提交…' : '开始一键采集'}
+        </button>
+        {message && <div role="status" className="mt-4 rounded-lg bg-forest-50 px-3 py-2 text-sm text-forest-700">{message}</div>}
+        {error && <div role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
+      </section>
     </div>
   );
 }

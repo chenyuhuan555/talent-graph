@@ -2,7 +2,12 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { api, STRENGTH_LABEL, REL_TYPE_LABEL, type GraphData, type GraphNode, type GraphEdge, type RelationshipEvidence, type Person } from '@/lib/api';
+import { searchPersons } from '@/lib/data/persons';
+import { getRelationshipEvidence, getRelationshipGraph } from '@/lib/data/relationships';
+import { STRENGTH_LABEL, REL_TYPE_LABEL, type GraphData, type GraphNode, type GraphEdge, type RelationshipEvidence, type Person } from '@/lib/types';
+import { externalHttpHref } from '@/lib/routes';
+import { useDomain } from '@/components/domain-context';
+import { getDomainByIndustry } from '@/lib/domains';
 
 interface SimNode extends GraphNode {
   x: number; y: number; vx: number; vy: number; fx?: number; fy?: number;
@@ -40,9 +45,16 @@ const EDGE_COLOR: Record<string, string> = {
   classmate: '#B8B4A9',
 };
 
+/** 节点颜色：人才按所属领域主题色，机构/论文/项目按固定类型色。 */
+function nodeColor(n: GraphNode): string {
+  if (n.node_type === 'person') return getDomainByIndustry(n.industry).palette['600'];
+  return NODE_COLOR[n.node_type || 'person'] || '#8C887E';
+}
+
 export default function GraphPage() {
   const searchParams = useSearchParams();
   const initialPerson = searchParams.get('person');
+  const { domain } = useDomain();
   const [personId, setPersonId] = useState(initialPerson || '');
   const [persons, setPersons] = useState<Person[]>([]);
   const [graph, setGraph] = useState<GraphData | null>(null);
@@ -55,19 +67,20 @@ export default function GraphPage() {
   const rafRef = useRef<number>(0);
 
   useEffect(() => {
-    api.get<Person[]>('/api/persons?page_size=100').then(setPersons);
-  }, []);
+    searchPersons({ pageSize: 100, industry: domain.industry }).then((result) => setPersons(result.data));
+  }, [domain.industry]);
 
   const loadGraph = useCallback((pid: string) => {
     if (!pid) return;
     setLoading(true);
     setSelectedEdge(null);
-    api.get<GraphData>(`/api/graph/person/${pid}?only_verified=${onlyVerified}&max_nodes=20`).then((g) => {
+    getRelationshipGraph(pid, 20, domain.industry).then((loaded) => {
+      const g = onlyVerified ? { ...loaded, edges: loaded.edges.filter((edge) => edge.is_verified) } : loaded;
       setGraph(g);
       // 初始化节点位置：中心节点居中，其余环形分布
       const cx = 400, cy = 280;
       const simNodes: SimNode[] = g.nodes.map((n, i) => {
-        if (n.id === g.center.id) {
+        if (n.id === g.center?.id) {
           return { ...n, x: cx, y: cy, vx: 0, vy: 0, fx: cx, fy: cy };
         }
         const angle = (i / g.nodes.length) * Math.PI * 2;
@@ -78,7 +91,7 @@ export default function GraphPage() {
       runSimulation(g);
     }).finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onlyVerified]);
+  }, [onlyVerified, domain.industry]);
 
   useEffect(() => {
     if (initialPerson) loadGraph(initialPerson);
@@ -107,6 +120,7 @@ export default function GraphPage() {
       }
       // 引力（边）
       for (const e of edges) {
+        if (!e.source || !e.target) continue;
         const a = nodeMap.get(e.source), b = nodeMap.get(e.target);
         if (!a || !b) continue;
         let dx = b.x - a.x, dy = b.y - a.y;
@@ -139,12 +153,8 @@ export default function GraphPage() {
   }
 
   async function handleEdgeClick(e: GraphEdge) {
-    // 查找关系 ID（通过边端点）
-    const targetId = e.target.replace('person:', '');
-    const rels = await api.get<any[]>(`/api/persons/${personId}/relationships`);
-    const rel = rels.find((r) => r.the_other_id === targetId && r.relationship_type === e.relationship_type);
-    if (rel) {
-      const evidence = await api.get<RelationshipEvidence[]>(`/api/relationships/${rel.id}/evidence`);
+    if (e.id) {
+      const evidence = await getRelationshipEvidence(e.id);
       setSelectedEdge({ edge: e, evidence });
     } else {
       setSelectedEdge({ edge: e, evidence: [] });
@@ -232,15 +242,15 @@ export default function GraphPage() {
               })}
               {/* 节点 */}
               {nodesRef.current.map((n) => {
-                const isCenter = graph.center.id === n.id;
+                const isCenter = graph.center?.id === n.id;
                 const size = isCenter ? 22 : 14;
-                const pathFn = SHAPE_PATH[n.shape] || SHAPE_PATH.circle;
+                const pathFn = SHAPE_PATH[n.shape || 'circle'] || SHAPE_PATH.circle;
                 return (
                   <g key={n.id} transform={`translate(${n.x},${n.y})`} className="cursor-pointer">
-                    <path d={pathFn(size)} fill={NODE_COLOR[n.node_type] || '#8C887E'} opacity={isCenter ? 1 : 0.9} stroke="#fff" strokeWidth={2} />
-                    {isCenter && <path d={pathFn(size + 5)} fill="none" stroke={NODE_COLOR[n.node_type]} strokeWidth={1} opacity={0.3} />}
+                    <path d={pathFn(size)} fill={nodeColor(n)} opacity={isCenter ? 1 : 0.9} stroke="#fff" strokeWidth={2} />
+                    {isCenter && <path d={pathFn(size + 5)} fill="none" stroke={nodeColor(n)} strokeWidth={1} opacity={0.3} />}
                     <text y={size + 14} textAnchor="middle" fontSize="11" fill="#4A4A45" fontWeight={isCenter ? 600 : 400}>
-                      {n.label.length > 8 ? n.label.slice(0, 7) + '…' : n.label}
+                      {(n.label || '').length > 8 ? (n.label || '').slice(0, 7) + '…' : n.label}
                     </text>
                     {isCenter && n.org && <text y={size + 28} textAnchor="middle" fontSize="9" fill="#8C887E">{n.org}</text>}
                   </g>
@@ -271,7 +281,7 @@ export default function GraphPage() {
               </div>
               <div>
                 <div className="text-xs text-warm-400">关系强度</div>
-                <div className="text-warm-600">{STRENGTH_LABEL[selectedEdge.edge.strength] || selectedEdge.edge.strength}</div>
+                <div className="text-warm-600">{STRENGTH_LABEL[selectedEdge.edge.strength || ''] || selectedEdge.edge.strength}</div>
               </div>
               <div>
                 <div className="text-xs text-warm-400">关系分</div>
@@ -291,7 +301,7 @@ export default function GraphPage() {
                     <div className="text-[10px] text-warm-400 mt-1">
                       基础分 {ev.base_score} · 可信度 {ev.confidence} · 时间重叠 {ev.time_overlap_score}
                     </div>
-                    {ev.source_url && <a href={ev.source_url} target="_blank" className="text-[10px] text-forest-600">来源链接 →</a>}
+                    {externalHttpHref(ev.source_url) && <a href={externalHttpHref(ev.source_url)} target="_blank" rel="noreferrer" className="text-[10px] text-forest-600">来源链接 →</a>}
                   </div>
                 ))}
               </div>

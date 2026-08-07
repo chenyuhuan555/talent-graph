@@ -1,47 +1,49 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { api, LEVEL_COLOR, type Person } from '@/lib/api';
+import { searchPersons } from '@/lib/data/persons';
+import { personDetailHref } from '@/lib/routes';
+import { useDomain } from '@/components/domain-context';
+import { LEVEL_COLOR, type Person } from '@/lib/types';
+import { PersonForm } from '@/components/forms/person-form';
 
-const DOMAINS = ['大模型', '多模态', 'AI Infra'];
 const LEVELS = ['S', 'A', 'B', 'C'];
 
 export default function PersonsPage() {
+  const router = useRouter();
+  const { domain } = useDomain();
   const [persons, setPersons] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [keyword, setKeyword] = useState('');
-  const [domain, setDomain] = useState('');
+  const [direction, setDirection] = useState('');
   const [level, setLevel] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [showForm, setShowForm] = useState(false);
   const pageSize = 15;
 
   useEffect(() => {
     setLoading(true);
-    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
-    if (keyword) params.set('keyword', keyword);
-    if (domain) params.set('primary_domain', domain);
-    if (level) params.set('talent_level', level);
-    api.get<Person[]>(`/api/persons?${params}`).then((data) => {
-      setPersons(data);
-      // 总数通过 stats 接口获取更准确，这里用近似
-      setTotal(Math.max(data.length, page === 1 ? 30 : total));
+    searchPersons({ page, pageSize, searchTerm: keyword, domain: direction, level, industry: domain.industry }).then((result) => {
+      setPersons(result.data);
+      setTotal(result.pagination.totalCount);
     }).finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [keyword, domain, level, page]);
+  }, [keyword, direction, level, page, domain.industry]);
 
   return (
     <div>
       <header className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-warm-600">人才库</h1>
-          <p className="text-sm text-warm-400 mt-0.5">人工智能人才基础库 · {persons.length} 条结果</p>
+          <p className="text-sm text-warm-400 mt-0.5">{domain.industry}人才基础库 · {persons.length} 条结果</p>
         </div>
-        <Link href="/import" className="px-4 py-2 bg-forest-600 text-white text-sm rounded-lg hover:bg-forest-700 transition flex items-center">
+        <button type="button" onClick={() => setShowForm(true)} className="px-4 py-2 bg-forest-600 text-white text-sm rounded-lg hover:bg-forest-700 transition flex items-center">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mr-1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          上传简历
-        </Link>
+          新建人才
+        </button>
       </header>
 
       {/* 筛选器 */}
@@ -57,9 +59,9 @@ export default function PersonsPage() {
             className="w-full pl-9 pr-3 py-2 border border-warm-200 rounded-lg text-sm focus:outline-none focus:border-forest-500"
           />
         </div>
-        <select value={domain} onChange={(e) => { setDomain(e.target.value); setPage(1); }} className="px-3 py-2 border border-warm-200 rounded-lg text-sm bg-white focus:outline-none focus:border-forest-500">
+        <select value={direction} onChange={(e) => { setDirection(e.target.value); setPage(1); }} className="px-3 py-2 border border-warm-200 rounded-lg text-sm bg-white focus:outline-none focus:border-forest-500">
           <option value="">全部方向</option>
-          {DOMAINS.map((d) => <option key={d} value={d}>{d}</option>)}
+          {(domain.subDirections || []).map((d) => <option key={d} value={d}>{d}</option>)}
         </select>
         <select value={level} onChange={(e) => { setLevel(e.target.value); setPage(1); }} className="px-3 py-2 border border-warm-200 rounded-lg text-sm bg-white focus:outline-none focus:border-forest-500">
           <option value="">全部级别</option>
@@ -83,7 +85,7 @@ export default function PersonsPage() {
             ) : persons.length === 0 ? (
               <tr><td colSpan={10} className="text-center py-10 text-warm-400">暂无数据</td></tr>
             ) : persons.map((p) => (
-              <tr key={p.id} className="border-b border-warm-100 hover:bg-warm-50 transition cursor-pointer" onClick={() => window.location.href = `/persons/${p.id}`}>
+              <tr key={p.id} className="border-b border-warm-100 hover:bg-warm-50 transition cursor-pointer" onClick={() => router.push(personDetailHref(p.id))}>
                 <td className="px-4 py-3">
                   <div className="flex items-center">
                     <div className="w-8 h-8 rounded-full bg-forest-100 text-forest-700 flex items-center justify-center text-xs font-medium mr-2.5">
@@ -115,13 +117,14 @@ export default function PersonsPage() {
         </table>
         {/* 分页 */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-warm-200">
-          <span className="text-xs text-warm-400">第 {page} 页</span>
+          <span className="text-xs text-warm-400">共 {total} 条 · 第 {page} 页</span>
           <div className="flex gap-2">
             <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="px-3 py-1.5 text-sm border border-warm-200 rounded-lg disabled:opacity-40 hover:bg-warm-50">上一页</button>
             <button disabled={persons.length < pageSize} onClick={() => setPage(page + 1)} className="px-3 py-1.5 text-sm border border-warm-200 rounded-lg disabled:opacity-40 hover:bg-warm-50">下一页</button>
           </div>
         </div>
       </div>
+      {showForm && <PersonForm onClose={() => setShowForm(false)} onSaved={(person) => { setPersons((items) => [person, ...items]); setTotal((value) => value + 1); setShowForm(false); }} />}
     </div>
   );
 }

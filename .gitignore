@@ -1,20 +1,45 @@
 # Node
 node_modules/
 .next/
+.next_*/
+*.tsbuildinfo
 out/
+frontend/out/
+frontend/Dockerfile
 
 # Python
 __pycache__/
 *.pyc
 .venv/
 venv/
+.migration-venv/
 *.db
+*.db-*
+*.sqlite
 *.sqlite3
+*.sqlite-*
 
 # 环境与上传
-.env
+.env*
+!.env.example
+!frontend/.env.example
 uploads/
 talent_graph.db
+
+# 本地旧系统与业务数据（代码目录已纳入仓库；数据库/环境文件仍忽略）
+.workbuddy/
+docker-compose.yml
+FEATURES.md
+deploy/
+deploy_final/
+deploy_lite/
+deploy_test/
+backups/
+exports/
+reports/
+supabase/.temp/
+playwright-report/
+test-results/
 
 # 系统
 .DS_Store
@@ -22,3 +47,16 @@ Thumbs.db
 
 # 隔离工作区
 .worktrees/
+
+/data_pipeline/scripts/static_data/
+backend/.venv/
+tools/crawler_backend/app/api/
+tools/crawler_backend/app/main.py
+tools/crawler_backend/app/schemas.py
+tools/crawler_backend/app/seed.py
+tools/crawler_backend/app/services/
+tools/data_pipeline/scripts/export_static_data.py
+tools/data_pipeline/services/data_sync_api.py
+tools/data_pipeline/scripts/static_data/
+backend/
+/data_pipeline/

@@ -6,22 +6,34 @@
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
-    "next": "14.2.15",
+    "@supabase/supabase-js": "^2.110.8",
+    "echarts": "^6.1.0",
+    "echarts-for-react": "^3.0.6",
+    "next": "^16.2.11",
     "react": "18.3.1",
-    "react-dom": "18.3.1",
-    "echarts": "5.5.1",
-    "echarts-for-react": "3.0.2"
+    "react-dom": "18.3.1"
   },
   "devDependencies": {
-    "@types/node": "20.16.11",
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "22.19.15",
     "@types/react": "18.3.11",
     "@types/react-dom": "18.3.0",
     "autoprefixer": "10.4.20",
-    "postcss": "8.4.47",
+    "jsdom": "^29.1.1",
+    "postcss": "^8.5.10",
     "tailwindcss": "3.4.13",
-    "typescript": "5.6.3"
+    "typescript": "5.6.3",
+    "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "postcss": "$postcss",
+    "sharp": "0.35.0"
   }
 }

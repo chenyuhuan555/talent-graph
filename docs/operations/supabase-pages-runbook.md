@@ -1,0 +1,154 @@
+# Talent Graph 上线手册
+
+本手册用于将 Talent Graph 发布给公司内部少量成员。业务数据只能保留在 Supabase；GitHub、Git 历史和 Pages 产物不得包含业务数据、数据库连接串或 Supabase secret key。
+
+## 1. 创建 Supabase 项目
+
+1. 在 Supabase 控制台的新项目页面创建 `talent-graph`，区域选择新加坡 `ap-southeast-1`。
+2. 生成唯一数据库密码并保存到密码管理器；不要写入聊天、仓库或 `.env.local`。
+3. 记录非敏感的 Project Ref、项目 URL 和 publishable key。
+4. 在 Auth 设置中确认关闭公开注册（Disable signups）。
+5. 确认 Database、Auth 和 Storage 均为健康状态。
+
+## 2. 应用后端
+
+在仓库根目录执行。`SUPABASE_DB_URL`、`SUPABASE_SECRET_KEY` 只在当前终端会话设置，用后立刻清除。
+
+```powershell
+npx supabase@latest login
+npx supabase@latest link --project-ref $env:SUPABASE_PROJECT_REF
+npx supabase@latest db push --linked
+
+$env:ALLOWED_ORIGINS = 'http://localhost:3000,https://<github-user>.github.io'
+npx supabase@latest secrets set ALLOWED_ORIGINS=$env:ALLOWED_ORIGINS --project-ref $env:SUPABASE_PROJECT_REF
+npx supabase@latest functions deploy manage-member --project-ref $env:SUPABASE_PROJECT_REF
+```
+
+保持 `manage-member` 的 JWT 验证开启。函数还会再次验证调用者是否为活跃管理员。
+
+### 2.1 名称翻译功能（学校 / 公司 / 论文中文译名）
+
+名称翻译新增了数据库迁移、`translate-content` Edge Function 和一个管理员批处理脚本。DeepSeek key 只作为 Edge Function Secret，不进入前端、Pages 产物、日志或 Git。
+
+```powershell
+# 1) 应用新增迁移（新增 organizations.name_zh / papers.title_zh / translation_cache，
+#    并扩展 organizations_search、新增 papers_search）。迁移仅新增列/表，不改动
+#    现有数据、RLS 或角色权限；*_zh 为空时前端回退显示原文，可安全先于翻译执行。
+npx supabase@latest db push --linked
+
+# 2) 配置 DeepSeek Secret（仅服务端）。DEEPSEEK_MODEL 可选，默认 deepseek-chat。
+$env:DEEPSEEK_API_KEY = '<deepseek key from password manager>'
+npx supabase@latest secrets set DEEPSEEK_API_KEY=$env:DEEPSEEK_API_KEY --project-ref $env:SUPABASE_PROJECT_REF
+npx supabase@latest secrets set DEEPSEEK_MODEL=deepseek-chat --project-ref $env:SUPABASE_PROJECT_REF
+Remove-Item Env:DEEPSEEK_API_KEY
+
+# 3) 部署函数（推送 main 时 CI 也会自动部署 translate-content；此处可手动先行部署）。
+npx supabase@latest functions deploy translate-content --project-ref $env:SUPABASE_PROJECT_REF
+```
+
+### 2.2 一键采集按钮
+
+“数据导入”页面的管理员按钮会异步触发 GitHub Actions，不会把数据库连接串发送到浏览器。
+首次配置一次即可：
+
+1. 在 GitHub 仓库 **Settings → Secrets and variables → Actions → Secrets** 新增
+   `SUPABASE_DB_URL`，值为 Supabase Connect 中的 **Session Pooler** 连接串。
+2. 创建一个仅有 Actions `workflow_dispatch` 权限的 GitHub Token，在 Supabase
+   **Edge Function Secrets** 中新增 `GITHUB_ACTIONS_TOKEN`。
+3. 确认 `ALLOWED_ORIGINS` 包含 `https://chenyuhuan555.github.io`，然后推送代码触发
+   `trigger-crawler` 函数部署。
+4. 登录网站，进入管理员可见的“数据导入”，点击“开始一键采集”。默认每个关键词最多 10 篇；
+   采集日志和失败详情在 GitHub Actions 中查看。
+
+数据库密码曾经在聊天中暴露时，必须先在 Supabase Database Settings 重置密码，再更新 GitHub Secret
+中的 `SUPABASE_DB_URL`；旧连接串不可继续使用。
+
+`translate-content` 保持 JWT 验证开启，并只允许 admin / operator 角色写入 `name_zh` / `title_zh`；机构仅处理学校和公司类型，其余类型跳过。
+
+历史数据批量翻译（管理员执行，可断点续跑，单条失败继续，无默认覆盖 / 清空）：
+
+```powershell
+$env:SUPABASE_DB_URL = '<password-manager connection string>'   # 只用于读取待翻译记录
+$env:SUPABASE_FUNCTIONS_URL = 'https://<project-ref>.functions.supabase.co'
+$env:TALENT_ADMIN_JWT = '<admin 用户的 access token（JWT）>'
+& .\.migration-venv\Scripts\python.exe -m tools.migration.translate_existing --content-type all --json-output reports\migration\translation.json
+Remove-Item Env:SUPABASE_DB_URL, Env:TALENT_ADMIN_JWT
+```
+
+批处理完成后核验：原始字段 `organizations.name`、`papers.title` 未被修改；`name_zh` / `title_zh` 数量与成功结果一致；重复执行不会重复计费（成功记录已回填，命中缓存不再调用 DeepSeek）。
+
+运行远端 SQL 合约检查；所有合约在事务中回滚测试数据：
+
+```powershell
+$env:SUPABASE_DB_URL = '<password-manager connection string>'
+& .\.migration-venv\Scripts\python.exe -m tools.migration.run_sql_contracts
+```
+
+交互式创建第一个管理员：
+
+```powershell
+$env:SUPABASE_URL = 'https://<project-ref>.supabase.co'
+$env:SUPABASE_SECRET_KEY = '<secret key from password manager>'
+& .\.migration-venv\Scripts\python.exe -m tools.migration.bootstrap_admin
+Remove-Item Env:SUPABASE_SECRET_KEY
+```
+
+确认只有一个活跃管理员 profile 后，再继续迁移。
+
+## 3. 创建快照、迁移与验证
+
+迁移前先生成 SQLite 一致性快照。源库只读，不直接操作原文件。
+
+```powershell
+& .\.migration-venv\Scripts\python.exe -m tools.migration.snapshot <sqlite-source-path> --output backups\sqlite
+$env:SQLITE_SNAPSHOT = '<generated .sqlite3 path>'
+$env:SUPABASE_ADMIN_ID = '<initial admin UUID>'
+
+# 先做不写入远端的预演
+& .\.migration-venv\Scripts\python.exe -m tools.migration.migrate $env:SQLITE_SNAPSHOT --admin-id $env:SUPABASE_ADMIN_ID --dry-run
+
+# 导出空远端基线到忽略目录
+& .\.migration-venv\Scripts\python.exe -m tools.migration.export_remote
+
+# 写入迁移，然后逐表核验
+& .\.migration-venv\Scripts\python.exe -m tools.migration.migrate $env:SQLITE_SNAPSHOT --admin-id $env:SUPABASE_ADMIN_ID
+& .\.migration-venv\Scripts\python.exe -m tools.migration.verify $env:SQLITE_SNAPSHOT --admin-id $env:SUPABASE_ADMIN_ID --json-output reports\migration\verification.json
+& .\.migration-venv\Scripts\python.exe -m tools.migration.verify_roles
+```
+
+记录迁移时间、行数、区域和通过/失败结果即可；报告、快照、UUID 样本、姓名和联系方式均不得提交。
+
+## 4. 配置 GitHub Pages
+
+1. 创建公开仓库 `talent-graph`，不要让 GitHub 生成 README、许可证或 `.gitignore`。
+2. 在仓库 Actions Variables（不是 Secrets）中设置：
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+3. 在 Pages 设置中将 Source 设为 **GitHub Actions**。
+4. 更新 `ALLOWED_ORIGINS`，加入精确的 Pages origin：`https://<github-user>.github.io`。
+5. 推送 `main` 分支，等待 Pages 工作流中的类型检查、构建、产物检查和部署全部通过。
+
+发布前与发布后检查：
+
+```powershell
+Set-Location frontend
+npm test
+npm run typecheck
+npm run build
+Set-Location ..
+python tools\repo_guard.py --repo . --tracked --artifact frontend\out
+```
+
+访问 `https://<github-user>.github.io/talent-graph/login/`，确认：登录页可见、未登录不会加载业务数据、管理员能登录、非管理员看不到成员和审计入口、退出后返回登录页。
+
+## 5. 回滚、停用与轮换
+
+- Pages 回滚：在 GitHub Actions 的旧成功部署中重新部署上一份 artifact；随后检查登录页和控制台错误。
+- 数据迁移回滚：保留当前 Supabase 数据，不执行破坏性删除；使用迁移前的远端基线和 SQLite 快照进行人工恢复评估。
+- 停用成员：管理员在成员管理页确认姓名后停用；现有会话会在下一次权限校验时失去数据访问权。
+- 轮换 secret key：在 Supabase 控制台轮换后，更新本地密码管理器和当前终端会话；不要放入 GitHub Variables 或前端环境变量。重新部署 `manage-member` 并验证管理员创建与停用功能。
+- 远端备份：迁移前、批量导入后、恢复前运行 `python -m tools.migration.export_remote`；备份目录保持忽略状态并存放在受控加密位置。
+
+## 6. 部署记录
+
+每次发布仅记录：日期时间、操作者、Project Ref、区域、迁移计数、角色核验结果、Pages 版本和回滚版本。不要记录密钥、连接串、业务对象、联系方式或导出内容。

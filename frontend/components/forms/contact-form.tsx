@@ -1,0 +1,11 @@
+'use client';
+
+import { useState } from 'react';
+import { addMaskedContact } from '@/lib/data/persons';
+import type { Contact } from '@/lib/types';
+
+export function ContactForm({ personId, onSaved, onClose }: { personId: string; onSaved: (contact: Contact) => void; onClose: () => void }) {
+  const [contactType, setContactType] = useState('email'); const [maskedValue, setMaskedValue] = useState(''); const [sourceUrl, setSourceUrl] = useState(''); const [error, setError] = useState(''); const [saving, setSaving] = useState(false);
+  async function submit(event: React.FormEvent) { event.preventDefault(); setSaving(true); setError(''); try { onSaved(await addMaskedContact(personId, { contact_type: contactType, masked_value: maskedValue, source_type: 'manual', source_url: sourceUrl })); } catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败'); } finally { setSaving(false); } }
+  return <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"><form onSubmit={submit} className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"><h2 className="text-lg font-semibold text-warm-600">添加联系方式</h2><p className="mt-1 text-xs text-warm-400">首期仅保存脱敏展示值，不在浏览器提交明文联系方式。</p><label className="mt-4 block text-xs text-warm-500">类型<select value={contactType} onChange={(e) => setContactType(e.target.value)} className="mt-1 w-full rounded-lg border p-2 text-sm"><option value="email">邮箱</option><option value="phone">电话</option><option value="homepage">个人主页</option></select></label><label className="mt-3 block text-xs text-warm-500">脱敏值<input required value={maskedValue} onChange={(e) => setMaskedValue(e.target.value)} placeholder="例：a***@company.com" className="mt-1 w-full rounded-lg border p-2 text-sm" /></label><label className="mt-3 block text-xs text-warm-500">来源链接<input value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} className="mt-1 w-full rounded-lg border p-2 text-sm" /></label>{error && <div className="mt-3 text-sm text-red-600">{error}</div>}<div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 text-sm">取消</button><button disabled={saving} className="rounded-lg bg-forest-600 px-4 py-2 text-sm text-white">保存</button></div></form></div>;
+}

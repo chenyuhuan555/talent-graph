@@ -1,12 +1,20 @@
 'use client';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getToken } from '@/lib/api';
+import { getActiveSession } from '@/lib/auth/session';
 
 export default function RootPage() {
   const router = useRouter();
   useEffect(() => {
-    router.replace(getToken() ? '/dashboard' : '/login');
+    let active = true;
+    void getActiveSession()
+      .then((session) => {
+        if (active) router.replace(session ? '/dashboard' : '/login');
+      })
+      .catch(() => {
+        if (active) router.replace('/login');
+      });
+    return () => { active = false; };
   }, [router]);
-  return <div className="min-h-screen flex items-center justify-center text-warm-400">跳转中…</div>;
+  return <div role="status" className="min-h-screen flex items-center justify-center text-warm-400">正在验证登录状态…</div>;
 }
