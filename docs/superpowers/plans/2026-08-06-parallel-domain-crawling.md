@@ -4,7 +4,7 @@
 
 **Goal:** Serialize talent-domain imports safely while moving the expensive full relationship rebuild into one independent manual workflow.
 
-**Architecture:** Keep `.github/workflows/crawler.yml` backward-compatible for its three existing inputs, but make it import-only with a fixed global concurrency group so imports queue safely. Add `.github/workflows/rebuild-relationships.yml` with a fixed global concurrency group so administrators can run one rebuild after all imports finish.
+**Architecture:** Keep `.github/workflows/crawler.yml` backward-compatible for its three existing inputs, but make it import-only with the shared `talent-graph-db-write` concurrency group so imports queue safely. Add `.github/workflows/rebuild-relationships.yml` using the same database write lock so a manual rebuild cannot overlap imports.
 
 **Tech Stack:** GitHub Actions YAML, Python contract tests with pytest, existing SQLAlchemy data pipeline.
 
@@ -30,7 +30,7 @@ REBUILD = ROOT / ".github" / "workflows" / "rebuild-relationships.yml"
 def test_crawler_is_import_only_and_serialized() -> None:
     workflow = CRAWLER.read_text(encoding="utf-8")
 
-    assert "group: talent-graph-crawler\n" in workflow
+    assert "group: talent-graph-db-write\n" in workflow
     assert "python -m data_pipeline.scripts.initial_import" in workflow
     assert "rebuild_relations_and_scores" not in workflow
 
@@ -39,7 +39,7 @@ def test_relationship_rebuild_is_an_independent_manual_workflow() -> None:
     workflow = REBUILD.read_text(encoding="utf-8")
 
     assert "workflow_dispatch:" in workflow
-    assert "group: talent-graph-relationship-rebuild" in workflow
+    assert "group: talent-graph-db-write\n" in workflow
     assert "SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}" in workflow
     assert "python -m pip install -r tools/data_pipeline/requirements.txt" in workflow
     assert "rebuild_relations_and_scores" in workflow
@@ -55,19 +55,19 @@ Run:
 
 Expected initially: both tests fail because the serialized crawler contract and independent rebuild workflow are not yet present. After Tasks 2-3, both tests should pass.
 
-### Task 2: Make the crawler import-only and globally serialized
+### Task 2: Make the crawler import-only under the shared database write lock
 
 **Files:**
 - Modify: `.github/workflows/crawler.yml`
 - Test: `tools/tests/test_workflow_contracts.py`
 
-- [ ] **Step 1: Serialize all crawler imports globally**
+- [ ] **Step 1: Serialize all database-writing workflows together**
 
 Replace the existing concurrency block with:
 
 ```yaml
 concurrency:
-  group: talent-graph-crawler
+  group: talent-graph-db-write
   cancel-in-progress: false
 ```
 
@@ -103,7 +103,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: talent-graph-relationship-rebuild
+  group: talent-graph-db-write
   cancel-in-progress: false
 
 jobs:
@@ -215,7 +215,7 @@ Expected: the branch is available on GitHub without force-pushing.
 
 - [ ] **Step 2: Verify the workflow definitions on the pushed commit**
 
-Check GitHub Actions for both `Run data crawler` and `Rebuild relationships and talent scores`. Confirm future crawler runs no longer contain a rebuild step, imports queue under the single global crawler group, and the manual rebuild runs once after a batch.
+Check GitHub Actions for both `Run data crawler` and `Rebuild relationships and talent scores`. Confirm future crawler runs no longer contain a rebuild step, both workflows queue under the shared `talent-graph-db-write` lock, and the manual rebuild runs once after a batch without overlapping imports.
 
 - [ ] **Step 3: Preserve the current run**
 
