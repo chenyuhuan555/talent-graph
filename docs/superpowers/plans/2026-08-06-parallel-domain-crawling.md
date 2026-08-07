@@ -53,7 +53,7 @@ Run:
 .\.migration-venv\Scripts\python.exe -m pytest tools/tests/test_workflow_contracts.py -q
 ```
 
-Expected: both tests pass once the crawler contract and independent rebuild workflow are present.
+Expected initially: both tests fail because the serialized crawler contract and independent rebuild workflow are not yet present. After Tasks 2-3, both tests should pass.
 
 ### Task 2: Make the crawler import-only and globally serialized
 
