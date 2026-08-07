@@ -80,7 +80,7 @@ Delete only the `Rebuild relationships and talent scores` step. Keep checkout, P
 Run:
 
 ```powershell
-.\.migration-venv\Scripts\python.exe -m pytest tools/tests/test_workflow_contracts.py::test_crawler_is_import_only_and_scoped_by_domain -q
+.\.migration-venv\Scripts\python.exe -m pytest tools/tests/test_workflow_contracts.py::test_crawler_is_import_only_and_serialized -q
 ```
 
 Expected: `1 passed`.
