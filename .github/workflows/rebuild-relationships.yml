@@ -9,6 +9,7 @@ permissions:
 concurrency:
   group: talent-graph-db-write
   cancel-in-progress: false
+  queue: max
 
 jobs:
   rebuild:

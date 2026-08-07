@@ -4,7 +4,7 @@
 
 **Goal:** Serialize talent-domain imports safely while moving the expensive full relationship rebuild into one independent manual workflow.
 
-**Architecture:** Keep `.github/workflows/crawler.yml` backward-compatible for its three existing inputs, but make it import-only with the shared `talent-graph-db-write` concurrency group so imports queue safely. Add `.github/workflows/rebuild-relationships.yml` using the same database write lock so a manual rebuild cannot overlap imports.
+**Architecture:** Keep `.github/workflows/crawler.yml` backward-compatible for its three existing inputs, but make it import-only with the shared `talent-graph-db-write` concurrency group and `queue: max`, retaining up to GitHub's 100 pending runs and canceling additional runs at the cap. Add `.github/workflows/rebuild-relationships.yml` using the same database write lock and queue policy so a manual rebuild cannot overlap imports.
 
 **Tech Stack:** GitHub Actions YAML, Python contract tests with pytest, existing SQLAlchemy data pipeline.
 
@@ -32,6 +32,7 @@ def test_crawler_is_import_only_and_serialized() -> None:
 
     assert "group: talent-graph-db-write\n" in workflow
     assert "cancel-in-progress: false" in workflow
+    assert "queue: max" in workflow
     assert "python -m data_pipeline.scripts.initial_import" in workflow
     assert "rebuild_relations_and_scores" not in workflow
 
@@ -42,6 +43,7 @@ def test_relationship_rebuild_is_an_independent_manual_workflow() -> None:
     assert "workflow_dispatch:" in workflow
     assert "group: talent-graph-db-write\n" in workflow
     assert "cancel-in-progress: false" in workflow
+    assert "queue: max" in workflow
     assert "SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}" in workflow
     assert "python -m pip install -r tools/data_pipeline/requirements.txt" in workflow
     assert "rebuild_relations_and_scores" in workflow
@@ -71,6 +73,7 @@ Replace the existing concurrency block with:
 concurrency:
   group: talent-graph-db-write
   cancel-in-progress: false
+  queue: max
 ```
 
 - [ ] **Step 2: Remove the unconditional relationship rebuild step**
@@ -107,6 +110,7 @@ permissions:
 concurrency:
   group: talent-graph-db-write
   cancel-in-progress: false
+  queue: max
 
 jobs:
   rebuild:
@@ -217,7 +221,7 @@ Expected: the branch is available on GitHub without force-pushing.
 
 - [ ] **Step 2: Verify the workflow definitions on the pushed commit**
 
-Check GitHub Actions for both `Run data crawler` and `Rebuild relationships and talent scores`. Confirm future crawler runs no longer contain a rebuild step, both workflows queue under the shared `talent-graph-db-write` lock, and the manual rebuild runs once after a batch without overlapping imports.
+Check GitHub Actions for both `Run data crawler` and `Rebuild relationships and talent scores`. Confirm future crawler runs no longer contain a rebuild step, both workflows queue under the shared `talent-graph-db-write` lock with `queue: max`, retain up to 100 pending runs, cancel additional runs at the cap, and the manual rebuild runs once after a batch without overlapping imports.
 
 - [ ] **Step 3: Preserve the current run**
 
