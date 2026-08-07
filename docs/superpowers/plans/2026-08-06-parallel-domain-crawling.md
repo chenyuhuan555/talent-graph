@@ -194,7 +194,7 @@ Expected: only the approved design, plan, two workflow changes, and workflow con
 - [ ] **Step 4: Commit the implementation**
 
 ```powershell
-git add .github/workflows/crawler.yml .github/workflows/rebuild-relationships.yml tools/tests/test_workflow_contracts.py docs/superpowers/plans/2026-08-06-parallel-domain-crawling.md
+git add .github/workflows/crawler.yml .github/workflows/rebuild-relationships.yml tools/tests/test_workflow_contracts.py docs/superpowers/specs/2026-08-06-parallel-domain-crawling-design.md docs/superpowers/plans/2026-08-06-parallel-domain-crawling.md
 git commit -m "fix: separate crawling from relationship rebuild"
 ```
 
